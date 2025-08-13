@@ -1,12 +1,13 @@
 import { ChangeEvent, useRef } from "react";
-import { Box, Button, Card, CardContent, CardHeader, Grid, Typography } from "@mui/material";
-
+import { Box, Button, Card, CardContent, CardHeader, Grid, Typography, IconButton, Tooltip } from "@mui/material";
+import DeleteOutline from "@mui/icons-material/DeleteOutline";
 interface GuestUploadProps {
   onAdd: (photos: string[]) => void;
   current: string[];
+  onRemove: (index: number) => void;
 }
 
-const GuestUpload = ({ onAdd, current }: GuestUploadProps) => {
+const GuestUpload = ({ onAdd, current, onRemove }: GuestUploadProps) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   const handleSelect = () => inputRef.current?.click();
@@ -93,13 +94,22 @@ const GuestUpload = ({ onAdd, current }: GuestUploadProps) => {
                     border: "1px solid hsl(var(--border))",
                   }}
                 >
-                  {/* eslint-disable-next-line jsx-a11y/alt-text */}
-                  <img
-                    src={src}
-                    alt={`Guest photo ${idx + 1}`}
-                    loading="lazy"
-                    style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-                  />
+          <img
+            src={src}
+            alt={`Guest photo ${idx + 1}`}
+            loading="lazy"
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+          />
+          <Tooltip title="Delete">
+            <IconButton
+              size="small"
+              aria-label={`Delete guest photo ${idx + 1}`}
+              onClick={() => onRemove(idx)}
+              sx={{ position: "absolute", top: 4, right: 4, bgcolor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", '&:hover': { bgcolor: "hsl(var(--muted))" } }}
+            >
+              <DeleteOutline fontSize="small" />
+            </IconButton>
+          </Tooltip>
                 </Box>
               </Grid>
             ))}

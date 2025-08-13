@@ -37,6 +37,10 @@ const Index = () => {
     setGuestPhotos((prev) => [...prev, ...photos]);
   };
 
+  const handleRemovePhoto = (index: number) => {
+    setGuestPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
   return (
     <Box component="main" sx={{ py: { xs: 4, md: 8 } }}>
       {/* Hero */}
@@ -54,7 +58,7 @@ const Index = () => {
 
       {/* Upload */}
       <Container sx={{ mb: { xs: 6, md: 8 } }}>
-        <GuestUpload onAdd={handleAddPhotos} current={guestPhotos} />
+        <GuestUpload onAdd={handleAddPhotos} current={guestPhotos} onRemove={handleRemovePhoto} />
       </Container>
 
       {/* Collage */}

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Box, Paper, Typography } from "@mui/material";
+import { Box, Paper, Typography, Button } from "@mui/material";
 
 interface CollageFrameProps {
   images: string[];
@@ -82,11 +82,23 @@ const CollageFrame = ({ images, size = 640 }: CollageFrameProps) => {
     });
   }, [images, size]);
 
+  const handleDownload = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const link = document.createElement("a");
+    link.download = `wedding-collage-${new Date().toISOString().slice(0, 10)}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
+
   return (
     <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid hsl(var(--border))" }}>
-      <Typography variant="h6" gutterBottom>
-        Live Guest Collage
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
+        <Typography variant="h6">Live Guest Collage</Typography>
+        <Button variant="outlined" color="primary" onClick={handleDownload} className="hover-scale" aria-label="Download live collage">
+          Download
+        </Button>
+      </Box>
       <Box sx={{ position: "relative", borderRadius: 3, overflow: "hidden", border: "1px solid hsl(var(--border))" }}>
         <canvas ref={canvasRef} />
       </Box>
