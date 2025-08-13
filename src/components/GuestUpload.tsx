@@ -14,15 +14,48 @@ const GuestUpload = ({ onAdd, current }: GuestUploadProps) => {
   const onFiles = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-    const readers = Array.from(files).map(
-      (file) =>
-        new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(file);
-        })
+
+    const readAsDataURL = (file: File) =>
+      new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+
+    const compressDataUrl = (dataUrl: string) =>
+      new Promise<string>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxSide = 1280;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height && width > maxSide) {
+            height = Math.round((maxSide / width) * height);
+            width = maxSide;
+          } else if (height >= width && height > maxSide) {
+            width = Math.round((maxSide / height) * width);
+            height = maxSide;
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d")!;
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.8));
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      });
+
+    const data = await Promise.all(
+      Array.from(files).map(async (file) => {
+        const raw = await readAsDataURL(file);
+        return await compressDataUrl(raw);
+      })
     );
-    const data = await Promise.all(readers);
+
     onAdd(data);
     if (inputRef.current) inputRef.current.value = "";
   };

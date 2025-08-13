@@ -20,16 +20,18 @@ const AutoScrollCanvas = ({ images, height = 280, speed = 0.8 }: AutoScrollCanva
     let isMounted = true;
     const loaders = images.map(
       (src) =>
-        new Promise<ImgItem>((resolve) => {
+        new Promise<ImgItem | null>((resolve) => {
           const img = new Image();
-          img.src = src;
           img.onload = () => resolve({ img, width: img.width, height: img.height });
+          img.onerror = () => resolve(null);
+          img.src = src;
         })
     );
 
     Promise.all(loaders).then((list) => {
       if (!isMounted) return;
-      setLoaded(list);
+      const filtered = list.filter(Boolean) as ImgItem[];
+      setLoaded(filtered);
     });
 
     return () => {

@@ -66,28 +66,19 @@ const CollageFrame = ({ images, size = 640 }: CollageFrameProps) => {
       ctx.drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
     };
 
-    let loaded = 0;
-    const imageEls: HTMLImageElement[] = [];
-
     images.forEach((src, i) => {
       const img = new Image();
-      img.src = src;
       img.onload = () => {
-        loaded++;
-        if (loaded === images.length) {
-          // draw all
-          for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-              const idx = r * cols + c;
-              if (!imageEls[idx]) continue;
-              const x = Math.round(c * cellW);
-              const y = Math.round(r * cellH);
-              drawImageCover(imageEls[idx], x, y, Math.ceil(cellW), Math.ceil(cellH));
-            }
-          }
-        }
+        const r = Math.floor(i / cols);
+        const c = i % cols;
+        const x = Math.round(c * cellW);
+        const y = Math.round(r * cellH);
+        drawImageCover(img, x, y, Math.ceil(cellW), Math.ceil(cellH));
       };
-      imageEls[i] = img;
+      img.onerror = () => {
+        // Skip failed image
+      };
+      img.src = src;
     });
   }, [images, size]);
 

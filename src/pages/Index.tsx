@@ -28,7 +28,9 @@ const Index = () => {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(guestPhotos));
-    } catch {}
+    } catch (err) {
+      console.warn("Failed to persist guest photos. Consider reducing file size.", err);
+    }
   }, [guestPhotos]);
 
   const handleAddPhotos = (photos: string[]) => {
