@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { Box, Container, Typography, Button, Stack } from "@mui/material";
-
+import floral from "@/assets/floral-spray.svg";
 const WeddingHero = () => {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -19,13 +19,29 @@ const WeddingHero = () => {
       onMouseMove={handleMouseMove}
       className="interactive-gradient"
       sx={{
+        position: "relative",
         py: { xs: 8, md: 12 },
         textAlign: "center",
         borderRadius: "24px",
         boxShadow: "var(--shadow-elegant)",
         background: "var(--gradient-subtle)",
+        overflow: "hidden",
       }}
     >
+      <img
+        src={floral}
+        alt=""
+        aria-hidden="true"
+        className="animate-fade-in"
+        style={{ position: "absolute", top: -20, right: -10, width: 180, opacity: 0.5, pointerEvents: "none", transform: "rotate(12deg)" }}
+      />
+      <img
+        src={floral}
+        alt=""
+        aria-hidden="true"
+        className="animate-fade-in"
+        style={{ position: "absolute", bottom: -24, left: -18, width: 200, opacity: 0.5, pointerEvents: "none", transform: "rotate(-150deg)" }}
+      />
       <Container maxWidth="md">
         <Stack spacing={3} alignItems="center">
           <Typography component="h1" variant="h2" sx={{ fontWeight: 700 }}>

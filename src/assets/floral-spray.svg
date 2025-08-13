@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="240" height="240" viewBox="0 0 240 240" fill="none">
+  <!-- Soft watercolor blob -->
+  <defs>
+    <radialGradient id="g1" cx="50%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="hsl(38 90% 85%)"/>
+      <stop offset="100%" stop-color="hsl(340 70% 90%)"/>
+    </radialGradient>
+  </defs>
+  <circle cx="120" cy="120" r="110" fill="url(#g1)" opacity="0.6"/>
+
+  <!-- Petals -->
+  <g fill="hsl(340 70% 55%)" opacity="0.85">
+    <path d="M120 30c15 10 28 22 32 38 3 12-5 24-18 24-14 0-22-10-22-24 0-14 3-26 8-38z"/>
+    <path d="M70 70c18-6 34-5 44 6 9 10 6 24-6 30-14 7-28 2-36-12-6-12-6-18-2-24z"/>
+    <path d="M150 76c18-6 34-5 44 6 9 10 6 24-6 30-14 7-28 2-36-12-6-12-6-18-2-24z"/>
+  </g>
+
+  <!-- Leaves -->
+  <g fill="hsl(145 45% 40%)" opacity="0.7">
+    <path d="M100 170c-22 2-40 0-58-12 12-16 34-20 58-12 18 6 22 18 0 24z"/>
+    <path d="M180 160c-16 10-34 14-56 12 0-10 18-20 40-22 10-1 14 2 16 10z"/>
+  </g>
+
+  <!-- Gold accent swirls -->
+  <g stroke="hsl(38 90% 55%)" stroke-width="2.5" fill="none" opacity="0.8">
+    <path d="M40 120c30-18 60-18 90 0" stroke-linecap="round"/>
+    <path d="M60 140c20-10 40-10 60 0" stroke-linecap="round"/>
+  </g>
+</svg>

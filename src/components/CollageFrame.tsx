@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Box, Paper, Typography, Button } from "@mui/material";
+import floral from "@/assets/floral-spray.svg";
 
 interface CollageFrameProps {
   images: string[];
@@ -100,7 +101,21 @@ const CollageFrame = ({ images, size = 640 }: CollageFrameProps) => {
         </Button>
       </Box>
       <Box sx={{ position: "relative", borderRadius: 3, overflow: "hidden", border: "1px solid hsl(var(--border))" }}>
-        <canvas ref={canvasRef} />
+        <img
+          src={floral}
+          alt=""
+          aria-hidden="true"
+          className="animate-fade-in"
+          style={{ position: "absolute", top: -10, left: -10, width: 140, opacity: 0.35, pointerEvents: "none", zIndex: 0, transform: "rotate(-10deg)" }}
+        />
+        <img
+          src={floral}
+          alt=""
+          aria-hidden="true"
+          className="animate-fade-in"
+          style={{ position: "absolute", bottom: -12, right: -12, width: 160, opacity: 0.35, pointerEvents: "none", zIndex: 0, transform: "rotate(160deg)" }}
+        />
+        <canvas ref={canvasRef} style={{ position: "relative", zIndex: 1 }} />
       </Box>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
         New photos are added automatically.
