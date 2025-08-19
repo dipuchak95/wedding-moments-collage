@@ -1,13 +1,15 @@
 import { useEffect, useRef } from "react";
-import { Box, Paper, Typography, Button } from "@mui/material";
+import { Box, Paper, Typography, Button, CircularProgress } from "@mui/material";
 import floral from "@/assets/floral-spray.svg";
+import { supabase, type Photo } from "@/lib/supabase";
 
 interface CollageFrameProps {
-  images: string[];
-  size?: number; // canvas size in CSS pixels (square)
+  photos: Photo[];
+  loading?: boolean;
+  size?: number;
 }
 
-const CollageFrame = ({ images, size = 640 }: CollageFrameProps) => {
+const CollageFrame = ({ photos, loading = false, size = 640 }: CollageFrameProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -29,18 +31,27 @@ const CollageFrame = ({ images, size = 640 }: CollageFrameProps) => {
     ctx.fillStyle = "hsl(var(--card))";
     ctx.fillRect(0, 0, cssSize, cssSize);
 
-    if (images.length === 0) {
+    if (loading) {
+      ctx.fillStyle = "hsl(var(--muted-foreground))";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "600 18px system-ui, -apple-system, Segoe UI, Roboto";
+      ctx.fillText("Loading photos...", cssSize / 2, cssSize / 2);
+      return;
+    }
+
+    if (photos.length === 0) {
       // Empty state
       ctx.fillStyle = "hsl(var(--muted-foreground))";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.font = "600 18px system-ui, -apple-system, Segoe UI, Roboto";
-      ctx.fillText("Your photos will appear here", cssSize / 2, cssSize / 2);
+      ctx.fillText("Upload photos to see your collage", cssSize / 2, cssSize / 2);
       return;
     }
 
-    const cols = Math.ceil(Math.sqrt(images.length));
-    const rows = Math.ceil(images.length / cols);
+    const cols = Math.ceil(Math.sqrt(photos.length));
+    const rows = Math.ceil(photos.length / cols);
     const cellW = cssSize / cols;
     const cellH = cssSize / rows;
 
@@ -67,7 +78,11 @@ const CollageFrame = ({ images, size = 640 }: CollageFrameProps) => {
       ctx.drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
     };
 
-    images.forEach((src, i) => {
+    photos.forEach((photo, i) => {
+      const { data } = supabase.storage
+        .from('wedding-photos')
+        .getPublicUrl(photo.storage_path);
+      
       const img = new Image();
       img.onload = () => {
         const r = Math.floor(i / cols);
@@ -79,9 +94,9 @@ const CollageFrame = ({ images, size = 640 }: CollageFrameProps) => {
       img.onerror = () => {
         // Skip failed image
       };
-      img.src = src;
+      img.src = data.publicUrl;
     });
-  }, [images, size]);
+  }, [photos, loading, size]);
 
   const handleDownload = () => {
     const canvas = canvasRef.current;
@@ -118,7 +133,14 @@ const CollageFrame = ({ images, size = 640 }: CollageFrameProps) => {
         <canvas ref={canvasRef} style={{ position: "relative", zIndex: 1 }} />
       </Box>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-        New photos are added automatically.
+        {loading ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <CircularProgress size={16} />
+            Loading photos from all guests...
+          </Box>
+        ) : (
+          `Live collage with ${photos.length} photos from all guests`
+        )}
       </Typography>
     </Paper>
   );

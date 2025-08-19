@@ -1,121 +1,213 @@
-import { ChangeEvent, useRef } from "react";
-import { Box, Button, Card, CardContent, CardHeader, Grid, Typography, IconButton, Tooltip } from "@mui/material";
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
+import { useRef, useState } from "react";
+import { Box, Card, Typography, Button, Grid, IconButton, CircularProgress } from "@mui/material";
+import { CloudUpload as UploadIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import { supabase, type Photo } from "@/lib/supabase";
+import { toast } from "@/hooks/use-toast";
+
 interface GuestUploadProps {
-  onAdd: (photos: string[]) => void;
-  current: string[];
-  onRemove: (index: number) => void;
+  photos: Photo[];
+  onPhotosChange: () => void;
 }
 
-const GuestUpload = ({ onAdd, current, onRemove }: GuestUploadProps) => {
-  const inputRef = useRef<HTMLInputElement | null>(null);
+const GuestUpload = ({ photos, onPhotosChange }: GuestUploadProps) => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   const handleSelect = () => inputRef.current?.click();
 
-  const onFiles = async (e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files) return;
+  const onFiles = async (files: FileList) => {
+    setUploading(true);
+    
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        // Compress image if needed
+        const compressedFile = await compressImage(file);
+        
+        // Generate unique filename
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `uploads/${fileName}`;
 
-    const readAsDataURL = (file: File) =>
-      new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
+        // Upload to Supabase Storage
+        const { error: uploadError } = await supabase.storage
+          .from('wedding-photos')
+          .upload(filePath, compressedFile);
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        // Save metadata to database
+        const { error: dbError } = await supabase
+          .from('photos')
+          .insert({
+            filename: fileName,
+            storage_path: filePath,
+            uploaded_by: 'Guest',
+            file_size: compressedFile.size,
+            mime_type: compressedFile.type,
+          });
+
+        if (dbError) {
+          throw dbError;
+        }
+
+        return filePath;
       });
 
-    const compressDataUrl = (dataUrl: string) =>
-      new Promise<string>((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          const maxSide = 1280;
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height && width > maxSide) {
-            height = Math.round((maxSide / width) * height);
-            width = maxSide;
-          } else if (height >= width && height > maxSide) {
-            width = Math.round((maxSide / height) * width);
-            height = maxSide;
-          }
-
-          const canvas = document.createElement("canvas");
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext("2d")!;
-          ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", 0.8));
-        };
-        img.onerror = () => resolve(dataUrl);
-        img.src = dataUrl;
+      await Promise.all(uploadPromises);
+      
+      toast({
+        title: "Photos uploaded successfully!",
+        description: `${files.length} photo(s) added to the wedding gallery.`,
       });
+      
+      onPhotosChange();
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: "Upload failed",
+        description: "Please try again. Make sure your images are not too large.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
 
-    const data = await Promise.all(
-      Array.from(files).map(async (file) => {
-        const raw = await readAsDataURL(file);
-        return await compressDataUrl(raw);
-      })
-    );
+  const compressImage = (file: File): Promise<File> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d')!;
+      const img = new Image();
+      
+      img.onload = () => {
+        const maxSize = 1200;
+        const ratio = Math.min(maxSize / img.width, maxSize / img.height);
+        
+        canvas.width = img.width * ratio;
+        canvas.height = img.height * ratio;
+        
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        canvas.toBlob((blob) => {
+          const compressedFile = new File([blob!], file.name, {
+            type: file.type,
+            lastModified: Date.now(),
+          });
+          resolve(compressedFile);
+        }, file.type, 0.8);
+      };
+      
+      img.src = URL.createObjectURL(file);
+    });
+  };
 
-    onAdd(data);
-    if (inputRef.current) inputRef.current.value = "";
+  const handleDelete = async (photo: Photo) => {
+    try {
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('wedding-photos')
+        .remove([photo.storage_path]);
+
+      if (storageError) {
+        throw storageError;
+      }
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from('photos')
+        .delete()
+        .eq('id', photo.id);
+
+      if (dbError) {
+        throw dbError;
+      }
+
+      toast({
+        title: "Photo deleted",
+        description: "Photo removed from the gallery.",
+      });
+      
+      onPhotosChange();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast({
+        title: "Delete failed",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
-    <Card id="upload" sx={{ borderRadius: 3, boxShadow: "var(--shadow-elegant)" }}>
-      <CardHeader title={<Typography variant="h5">Mark Your Presence</Typography>} subheader="Upload a photo to be part of our live collage" />
-      <CardContent>
-        <Box display="flex" gap={2} alignItems="center" flexWrap="wrap" mb={2}>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={onFiles}
-            style={{ display: "none" }}
-          />
-          <Button variant="contained" color="primary" onClick={handleSelect} className="hover-scale">
-            Upload Photos
-          </Button>
-          <Typography variant="body2" color="text.secondary">
-            JPG, PNG. Your photo appears instantly in the collage.
-          </Typography>
-        </Box>
-        {current.length > 0 && (
-          <Grid container spacing={1}>
-            {current.map((src, idx) => (
-              <Grid item xs={4} sm={2} md={1.5 as any} key={idx}>
-                <Box
-                  sx={{
-                    position: "relative",
-                    paddingTop: "100%",
-                    borderRadius: 2,
-                    overflow: "hidden",
-                    border: "1px solid hsl(var(--border))",
-                  }}
-                >
-          <img
-            src={src}
-            alt={`Guest photo ${idx + 1}`}
-            loading="lazy"
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-          />
-          <Tooltip title="Delete">
-            <IconButton
-              size="small"
-              aria-label={`Delete guest photo ${idx + 1}`}
-              onClick={() => onRemove(idx)}
-              sx={{ position: "absolute", top: 4, right: 4, bgcolor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", '&:hover': { bgcolor: "hsl(var(--muted))" } }}
-            >
-              <DeleteOutline fontSize="small" />
-            </IconButton>
-          </Tooltip>
+    <Card sx={{ p: 3, borderRadius: 3, boxShadow: "var(--shadow-elegant)" }}>
+      <Typography variant="h5" sx={{ mb: 1, fontWeight: 600 }}>
+        Share Your Moment
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Upload photos to be part of the live wedding collage that all guests can see
+      </Typography>
+
+      <Box sx={{ mb: 3 }}>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={(e) => e.target.files && onFiles(e.target.files)}
+          style={{ display: "none" }}
+        />
+        <Button
+          variant="contained"
+          startIcon={uploading ? <CircularProgress size={20} color="inherit" /> : <UploadIcon />}
+          onClick={handleSelect}
+          disabled={uploading}
+          sx={{ mb: 3 }}
+        >
+          {uploading ? 'Uploading...' : 'Upload Photos'}
+        </Button>
+      </Box>
+
+      {photos.length > 0 && (
+        <Grid container spacing={2}>
+          {photos.map((photo) => {
+            const { data } = supabase.storage
+              .from('wedding-photos')
+              .getPublicUrl(photo.storage_path);
+            
+            return (
+              <Grid item xs={6} sm={4} md={3} key={photo.id}>
+                <Box sx={{ position: "relative" }}>
+                  <img
+                    src={data.publicUrl}
+                    alt={`Upload ${photo.filename}`}
+                    style={{
+                      width: "100%",
+                      height: "120px",
+                      objectFit: "cover",
+                      borderRadius: "8px",
+                    }}
+                  />
+                  <IconButton
+                    size="small"
+                    onClick={() => handleDelete(photo)}
+                    sx={{
+                      position: "absolute",
+                      top: 4,
+                      right: 4,
+                      backgroundColor: "rgba(255, 255, 255, 0.9)",
+                      "&:hover": { backgroundColor: "rgba(255, 255, 255, 1)" },
+                    }}
+                  >
+                    <DeleteIcon fontSize="small" color="error" />
+                  </IconButton>
                 </Box>
               </Grid>
-            ))}
-          </Grid>
-        )}
-      </CardContent>
+            );
+          })}
+        </Grid>
+      )}
     </Card>
   );
 };

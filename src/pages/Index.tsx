@@ -4,6 +4,7 @@ import WeddingHero from "@/components/WeddingHero";
 import AutoScrollCanvas from "@/components/AutoScrollCanvas";
 import GuestUpload from "@/components/GuestUpload";
 import CollageFrame from "@/components/CollageFrame";
+import { supabase, type Photo } from "@/lib/supabase";
 
 import img1 from "@/assets/wedding-01.jpg";
 import img2 from "@/assets/wedding-02.jpg";
@@ -11,35 +12,49 @@ import img3 from "@/assets/wedding-03.jpg";
 import img4 from "@/assets/wedding-04.jpg";
 import img5 from "@/assets/wedding-05.jpg";
 
-const STORAGE_KEY = "guest_photos_v1";
-
 const Index = () => {
   const galleryImages = useMemo(() => [img1, img2, img3, img4, img5], []);
+  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [guestPhotos, setGuestPhotos] = useState<string[]>(() => {
+  const fetchPhotos = async () => {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
+      const { data, error } = await supabase
+        .from('photos')
+        .select('*')
+        .order('uploaded_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching photos:', error);
+        return;
+      }
+
+      setPhotos(data || []);
+    } catch (error) {
+      console.error('Error fetching photos:', error);
+    } finally {
+      setLoading(false);
     }
-  });
+  };
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(guestPhotos));
-    } catch (err) {
-      console.warn("Failed to persist guest photos. Consider reducing file size.", err);
-    }
-  }, [guestPhotos]);
+    fetchPhotos();
 
-  const handleAddPhotos = (photos: string[]) => {
-    setGuestPhotos((prev) => [...prev, ...photos]);
-  };
+    // Set up real-time subscription
+    const subscription = supabase
+      .channel('photos_changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'photos' },
+        () => {
+          fetchPhotos();
+        }
+      )
+      .subscribe();
 
-  const handleRemovePhoto = (index: number) => {
-    setGuestPhotos((prev) => prev.filter((_, i) => i !== index));
-  };
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <Box component="main" sx={{ py: { xs: 4, md: 8 } }}>
@@ -58,12 +73,12 @@ const Index = () => {
 
       {/* Upload */}
       <Container sx={{ mb: { xs: 6, md: 8 } }}>
-        <GuestUpload onAdd={handleAddPhotos} current={guestPhotos} onRemove={handleRemovePhoto} />
+        <GuestUpload photos={photos} onPhotosChange={fetchPhotos} />
       </Container>
 
       {/* Collage */}
       <Container sx={{ mb: { xs: 6, md: 10 } }}>
-        <CollageFrame images={guestPhotos} />
+        <CollageFrame photos={photos} loading={loading} />
       </Container>
     </Box>
   );
