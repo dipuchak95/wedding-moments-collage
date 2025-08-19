@@ -1,32 +1,37 @@
 import { useEffect, useRef } from "react";
 import { Box, Paper, Typography, Button, CircularProgress } from "@mui/material";
 import floral from "@/assets/floral-spray.svg";
-import { supabase, type Photo } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
-interface CollageFrameProps {
-  photos: Photo[];
-  loading?: boolean;
-  size?: number;
-}
-
-const CollageFrame = ({ photos, loading = false, size = 640 }: CollageFrameProps) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+const CollageFrame = ({ photos, loading = false, size = 640 }) => {
+  const canvasRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    const cssSize = Math.min(size, canvas.parentElement?.clientWidth || size);
-
-    canvas.width = Math.floor(cssSize * dpr);
-    canvas.height = Math.floor(cssSize * dpr);
-    canvas.style.width = `${cssSize}px`;
-    canvas.style.height = `${cssSize}px`;
-
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const dpr = window.devicePixelRatio || 1;
+    const cssSize = size;
+
+    canvas.width = cssSize * dpr;
+    canvas.height = cssSize * dpr;
+    canvas.style.width = cssSize + "px";
+    canvas.style.height = cssSize + "px";
+
+    ctx.scale(dpr, dpr);
+
+    const drawImageCover = (img, x, y, w, h) => {
+      const scale = Math.max(w / img.width, h / img.height);
+      const newWidth = img.width * scale;
+      const newHeight = img.height * scale;
+      const offsetX = (w - newWidth) / 2;
+      const offsetY = (h - newHeight) / 2;
+
+      ctx.drawImage(img, x + offsetX, y + offsetY, newWidth, newHeight);
+    };
 
     ctx.fillStyle = "hsl(var(--card))";
     ctx.fillRect(0, 0, cssSize, cssSize);
@@ -55,29 +60,6 @@ const CollageFrame = ({ photos, loading = false, size = 640 }: CollageFrameProps
     const cellW = cssSize / cols;
     const cellH = cssSize / rows;
 
-    const drawImageCover = (
-      image: HTMLImageElement,
-      dx: number,
-      dy: number,
-      dWidth: number,
-      dHeight: number
-    ) => {
-      const ar = image.width / image.height;
-      const targetAR = dWidth / dHeight;
-
-      let sx = 0, sy = 0, sWidth = image.width, sHeight = image.height;
-      if (ar > targetAR) {
-        // source is wider
-        sWidth = image.height * targetAR;
-        sx = (image.width - sWidth) / 2;
-      } else {
-        // source is taller
-        sHeight = image.width / targetAR;
-        sy = (image.height - sHeight) / 2;
-      }
-      ctx.drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
-    };
-
     photos.forEach((photo, i) => {
       const { data } = supabase.storage
         .from('wedding-photos')
@@ -101,18 +83,21 @@ const CollageFrame = ({ photos, loading = false, size = 640 }: CollageFrameProps
   const handleDownload = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
     const link = document.createElement("a");
-    link.download = `wedding-collage-${new Date().toISOString().slice(0, 10)}.png`;
-    link.href = canvas.toDataURL("image/png");
+    link.download = "wedding-collage.png";
+    link.href = canvas.toDataURL();
     link.click();
   };
 
   return (
-    <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: "1px solid hsl(var(--border))" }}>
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-        <Typography variant="h6">Live Guest Collage</Typography>
-        <Button variant="outlined" color="primary" onClick={handleDownload} className="hover-scale" aria-label="Download live collage">
-          Download
+    <Paper sx={{ p: 3, borderRadius: 3, boxShadow: "var(--shadow-elegant)" }}>
+      <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
+        Live Wedding Collage
+      </Typography>
+      <Box sx={{ mb: 2 }}>
+        <Button variant="outlined" onClick={handleDownload}>
+          Download Collage
         </Button>
       </Box>
       <Box sx={{ position: "relative", borderRadius: 3, overflow: "hidden", border: "1px solid hsl(var(--border))" }}>

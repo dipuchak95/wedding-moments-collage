@@ -4,7 +4,7 @@ import WeddingHero from "@/components/WeddingHero";
 import AutoScrollCanvas from "@/components/AutoScrollCanvas";
 import GuestUpload from "@/components/GuestUpload";
 import CollageFrame from "@/components/CollageFrame";
-import { supabase, type Photo } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 import img1 from "@/assets/wedding-01.jpg";
 import img2 from "@/assets/wedding-02.jpg";
@@ -14,7 +14,7 @@ import img5 from "@/assets/wedding-05.jpg";
 
 const Index = () => {
   const galleryImages = useMemo(() => [img1, img2, img3, img4, img5], []);
-  const [photos, setPhotos] = useState<Photo[]>([]);
+  const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchPhotos = async () => {

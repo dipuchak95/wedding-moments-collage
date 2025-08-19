@@ -1,21 +1,16 @@
 import { useRef, useState } from "react";
 import { Box, Card, Typography, Button, Grid, IconButton, CircularProgress } from "@mui/material";
 import { CloudUpload as UploadIcon, Delete as DeleteIcon } from "@mui/icons-material";
-import { supabase, type Photo } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
 
-interface GuestUploadProps {
-  photos: Photo[];
-  onPhotosChange: () => void;
-}
-
-const GuestUpload = ({ photos, onPhotosChange }: GuestUploadProps) => {
-  const inputRef = useRef<HTMLInputElement>(null);
+const GuestUpload = ({ photos, onPhotosChange }) => {
+  const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
 
   const handleSelect = () => inputRef.current?.click();
 
-  const onFiles = async (files: FileList) => {
+  const onFiles = async (files) => {
     setUploading(true);
     
     try {
@@ -75,10 +70,10 @@ const GuestUpload = ({ photos, onPhotosChange }: GuestUploadProps) => {
     }
   };
 
-  const compressImage = (file: File): Promise<File> => {
+  const compressImage = (file) => {
     return new Promise((resolve) => {
       const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d')!;
+      const ctx = canvas.getContext('2d');
       const img = new Image();
       
       img.onload = () => {
@@ -91,7 +86,7 @@ const GuestUpload = ({ photos, onPhotosChange }: GuestUploadProps) => {
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         
         canvas.toBlob((blob) => {
-          const compressedFile = new File([blob!], file.name, {
+          const compressedFile = new File([blob], file.name, {
             type: file.type,
             lastModified: Date.now(),
           });
@@ -103,7 +98,7 @@ const GuestUpload = ({ photos, onPhotosChange }: GuestUploadProps) => {
     });
   };
 
-  const handleDelete = async (photo: Photo) => {
+  const handleDelete = async (photo) => {
     try {
       // Delete from storage
       const { error: storageError } = await supabase.storage
