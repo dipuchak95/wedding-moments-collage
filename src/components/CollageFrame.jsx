@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Box, Typography, ImageList, ImageListItem, ImageListItemBar, CircularProgress } from "@mui/material";
+import { supabase } from "@/lib/supabase";
 
 const CollageFrame = ({ photos = [], count = 0 }) => {
 	const [loading, setLoading] = useState(true);
@@ -85,16 +86,19 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 					}}
 				>
 					{photos.map((photo, index) => {
-						// Try multiple possible image URL properties
+						// Use Supabase storage getPublicUrl method for correct URL construction
 						let imageUrl = null;
-						if (photo.storage_path) {
-							imageUrl = `https://wedding-moments-collage.supabase.co/storage/v1/object/public/wedding-photos/${photo.storage_path}`;
-						} else if (photo.url) {
-							imageUrl = photo.url;
-						} else if (photo.image_url) {
-							imageUrl = photo.image_url;
-						} else if (photo.public_url) {
-							imageUrl = photo.public_url;
+						try {
+							if (photo.storage_path) {
+								// Use the supabase client to get the correct public URL
+								const { data } = supabase.storage
+									.from('wedding-photos')
+									.getPublicUrl(photo.storage_path);
+								imageUrl = data.publicUrl;
+								console.log(`Generated URL for ${photo.storage_path}:`, imageUrl);
+							}
+						} catch (err) {
+							console.warn('Error generating Supabase URL:', err);
 						}
 
 						// If no URL found, show placeholder
@@ -145,6 +149,7 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 									loading="lazy"
 									onError={(e) => {
 										console.warn(`Failed to load image: ${imageUrl}`);
+										console.warn('Photo data:', photo);
 										e.target.style.display = 'none';
 									}}
 									style={{
