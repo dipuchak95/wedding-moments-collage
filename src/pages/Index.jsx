@@ -31,7 +31,13 @@ const Index = () => {
     try {
       const { data, error } = await supabase
         .from('photos')
-        .select('*')
+        .select(`
+          *,
+          users!photos_uploaded_by_fkey (
+            full_name,
+            email
+          )
+        `)
         .order('created_at', { ascending: false });
 
       if (error) {
@@ -49,41 +55,37 @@ const Index = () => {
 
   const fetchBucketPhotos = async () => {
     try {
-      const pageSize = 100;
-      let offset = 0;
-      let allItems = [];
-      // List images from the 'uploads' folder within the bucket
-      // Loop for pagination to ensure we retrieve all files
-      // Stop when a page returns fewer than pageSize items
-      // Note: If your files are not inside an 'uploads' folder, change the path argument below
-      while (true) {
-        const { data, error } = await supabase.storage
-          .from('wedding-photos')
-          .list('uploads', {
-            limit: pageSize,
-            offset,
-            sortBy: { column: 'updated_at', order: 'desc' },
-          });
-        if (error) {
-          console.error('Error listing bucket photos:', error);
-          break;
-        }
-        const items = data || [];
-        allItems = allItems.concat(items);
-        if (items.length < pageSize) break;
-        offset += pageSize;
+      // First get photos from the database with user information
+      const { data: photosData, error: photosError } = await supabase
+        .from('photos')
+        .select(`
+          *,
+          users!photos_uploaded_by_fkey (
+            full_name,
+            email
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (photosError) {
+        console.error('Error fetching photos with user data:', photosError);
+        return;
       }
 
-      // Map storage items into a minimal shape expected by collage renderer
-      const mapped = allItems.map((item) => ({
-        // Match the path format used elsewhere in the app
-        storage_path: `uploads/${item.name}`,
-        created_at: item.created_at,
-        filename: item.name,
+      // Map the photos data to include user information
+      const mapped = photosData.map((photo) => ({
+        id: photo.id,
+        storage_path: photo.storage_path,
+        created_at: photo.created_at,
+        filename: photo.filename,
+        uploaded_by: photo.users?.full_name || photo.users?.email?.split('@')[0] || 'Anonymous Guest',
+        user_email: photo.users?.email,
+        user_full_name: photo.users?.full_name
       }));
+
       setBucketPhotos(mapped);
     } catch (err) {
-      console.error('Unexpected error listing bucket photos:', err);
+      console.error('Unexpected error fetching bucket photos:', err);
     }
   };
 

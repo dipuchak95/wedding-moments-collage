@@ -30,11 +30,10 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 			console.log('Sample photo data:', validPhotos[0]);
 			console.log('Sample photo user fields:', {
 				uploaded_by: validPhotos[0]?.uploaded_by,
-				user_name: validPhotos[0]?.user_name,
-				full_name: validPhotos[0]?.full_name,
-				name: validPhotos[0]?.name,
-				email: validPhotos[0]?.email,
-				user_id: validPhotos[0]?.user_id
+				user_email: validPhotos[0]?.user_email,
+				user_full_name: validPhotos[0]?.user_full_name,
+				id: validPhotos[0]?.id,
+				storage_path: validPhotos[0]?.storage_path
 			});
 			
 			setFilteredPhotos(validPhotos);
@@ -113,10 +112,9 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 					<Typography variant="caption" sx={{ display: 'block', mt: 1, fontFamily: 'monospace', fontSize: '0.7rem' }}>
 						First photo user data: {JSON.stringify({
 							uploaded_by: filteredPhotos[0]?.uploaded_by,
-							user_name: filteredPhotos[0]?.user_name,
-							full_name: filteredPhotos[0]?.full_name,
-							name: filteredPhotos[0]?.name,
-							email: filteredPhotos[0]?.email
+							user_email: filteredPhotos[0]?.user_email,
+							user_full_name: filteredPhotos[0]?.user_full_name,
+							id: filteredPhotos[0]?.id
 						}, null, 2)}
 					</Typography>
 				)}
@@ -224,23 +222,7 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 								/>
 								<ImageListItemBar
 									position="below"
-									title={(() => {
-										// Try multiple possible user name fields
-										const userName = photo.uploaded_by || 
-														photo.user_name || 
-														photo.user_name || 
-														photo.full_name || 
-														photo.name || 
-														photo.email?.split('@')[0] || 
-														'Anonymous Guest';
-										
-										// If it's a UUID (user ID), show a more user-friendly label
-										if (userName && userName.length === 36 && userName.includes('-')) {
-											return 'Guest User';
-										}
-										
-										return userName;
-									})()}
+									title={photo.uploaded_by || 'Anonymous Guest'}
 									subtitle=""
 									sx={{
 										'& .MuiImageListItemBar-title': {

@@ -42,7 +42,14 @@ export type Database = {
           storage_path?: string
           uploaded_by?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "photos_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
       }
     }
     Views: {
