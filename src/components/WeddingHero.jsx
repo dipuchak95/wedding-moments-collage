@@ -2,9 +2,9 @@ import { useRef } from "react";
 import { Box, Container, Typography, Button, Stack } from "@mui/material";
 import floral from "@/assets/floral-spray.svg";
 const WeddingHero = () => {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef(null);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+  const handleMouseMove = (e) => {
     if (!ref.current) return;
     const rect = ref.current.getBoundingClientRect();
     const x = e.clientX - rect.left;

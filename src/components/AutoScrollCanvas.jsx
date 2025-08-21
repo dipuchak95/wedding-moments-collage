@@ -1,26 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 
-interface AutoScrollCanvasProps {
-  images: string[];
-  height?: number;
-  speed?: number; // pixels per frame
-}
-
-interface ImgItem {
-  img: HTMLImageElement;
-  width: number;
-  height: number;
-}
-
-const AutoScrollCanvas = ({ images, height = 280, speed = 0.8 }: AutoScrollCanvasProps) => {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [loaded, setLoaded] = useState<ImgItem[]>([]);
+const AutoScrollCanvas = ({ images, height = 280, speed = 0.8 }) => {
+  const canvasRef = useRef(null);
+  const [loaded, setLoaded] = useState([]);
 
   useEffect(() => {
     let isMounted = true;
     const loaders = images.map(
       (src) =>
-        new Promise<ImgItem | null>((resolve) => {
+        new Promise((resolve) => {
           const img = new Image();
           img.onload = () => resolve({ img, width: img.width, height: img.height });
           img.onerror = () => resolve(null);
@@ -30,7 +18,7 @@ const AutoScrollCanvas = ({ images, height = 280, speed = 0.8 }: AutoScrollCanva
 
     Promise.all(loaders).then((list) => {
       if (!isMounted) return;
-      const filtered = list.filter(Boolean) as ImgItem[];
+      const filtered = list.filter(Boolean);
       setLoaded(filtered);
     });
 
@@ -50,7 +38,7 @@ const AutoScrollCanvas = ({ images, height = 280, speed = 0.8 }: AutoScrollCanva
     const parent = canvas.parentElement;
 
     const resize = () => {
-      const width = parent?.clientWidth || 800;
+      const width = parent ? parent.clientWidth : 800;
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
       canvas.style.width = `${width}px`;
@@ -65,8 +53,8 @@ const AutoScrollCanvas = ({ images, height = 280, speed = 0.8 }: AutoScrollCanva
     const baseWidths = loaded.map((item) => Math.round((item.img.width / item.img.height) * height));
 
     // Build track that covers at least 2x viewport width
-    let positions: number[] = [];
-    let widths: number[] = [];
+    let positions = [];
+    let widths = [];
     let totalWidth = 0;
     const viewW = canvas.clientWidth;
     let pointer = 0;
@@ -90,7 +78,7 @@ const AutoScrollCanvas = ({ images, height = 280, speed = 0.8 }: AutoScrollCanva
 
       // Recycle items that moved off-screen
       while (positions.length && positions[0] + widths[0] < 0) {
-        const w = widths.shift()!;
+        const w = widths.shift();
         positions.shift();
         const lastPos = positions[positions.length - 1] + widths[widths.length - 1];
         positions.push(lastPos);
