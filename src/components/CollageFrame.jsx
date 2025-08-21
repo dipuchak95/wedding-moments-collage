@@ -5,20 +5,36 @@ import { supabase } from "@/lib/supabase";
 const CollageFrame = ({ photos = [], count = 0 }) => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
+	const [filteredPhotos, setFilteredPhotos] = useState([]);
 
 	useEffect(() => {
 		if (photos.length > 0) {
+			// Filter out any invalid or empty photo entries
+			const validPhotos = photos.filter(photo => 
+				photo && 
+				photo.storage_path && 
+				photo.storage_path.trim() !== '' &&
+				photo.storage_path !== '.emptyFolderPlaceholder'
+			);
+			
+			console.log('Original photos count:', photos.length);
+			console.log('Filtered photos count:', validPhotos.length);
+			console.log('Invalid photos:', photos.filter(photo => 
+				!photo || !photo.storage_path || photo.storage_path.trim() === '' || photo.storage_path === '.emptyFolderPlaceholder'
+			));
+			
+			setFilteredPhotos(validPhotos);
 			setLoading(false);
 		}
 	}, [photos]);
 
 	// Debug: Log photo data to understand structure
 	useEffect(() => {
-		if (photos.length > 0) {
-			console.log('CollageFrame photos:', photos);
-			console.log('First photo structure:', photos[0]);
+		if (filteredPhotos.length > 0) {
+			console.log('CollageFrame filtered photos:', filteredPhotos);
+			console.log('First photo structure:', filteredPhotos[0]);
 		}
-	}, [photos]);
+	}, [filteredPhotos]);
 
 	if (error) {
 		return (
@@ -41,7 +57,7 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 		);
 	}
 
-	if (photos.length === 0) {
+	if (filteredPhotos.length === 0) {
 		return (
 			<Box sx={{ textAlign: 'center', py: 4 }}>
 				<Typography variant="body2" color="text.secondary">
@@ -56,8 +72,16 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 			{/* Debug info */}
 			<Box sx={{ mb: 2, p: 2, bgcolor: 'rgba(0,0,0,0.05)', borderRadius: 1, fontSize: '0.75rem' }}>
 				<Typography variant="caption">
-					Debug: {photos.length} photos received. First photo keys: {Object.keys(photos[0] || {}).join(', ')}
+					Debug: {filteredPhotos.length} photos received. First photo keys: {Object.keys(filteredPhotos[0] || {}).join(', ')}
 				</Typography>
+				<Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
+					Original count: {photos.length} | Filtered count: {filteredPhotos.length} | Difference: {photos.length - filteredPhotos.length}
+				</Typography>
+				{photos.length !== filteredPhotos.length && (
+					<Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'warning.main' }}>
+						⚠️ {photos.length - filteredPhotos.length} invalid photo(s) filtered out
+					</Typography>
+				)}
 			</Box>
 
 			<Box sx={{ 
@@ -65,7 +89,9 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 				boxShadow: 'var(--shadow-elegant)',
 				overflow: 'hidden',
 				background: 'linear-gradient(135deg, #fff5f7 0%, #ffeef2 50%, #fff0f5 100%)',
-				p: 2
+				p: 2,
+				maxHeight: '70vh', // Make container scrollable
+				overflowY: 'auto' // Enable vertical scrolling
 			}}>
 				<ImageList 
 					variant="masonry" 
@@ -82,10 +108,17 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 								transform: 'translateY(-4px)',
 								boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
 							}
+						},
+						// Ensure proper masonry layout with dynamic heights
+						'& .MuiImageListItem-img': {
+							width: '100%',
+							height: 'auto',
+							objectFit: 'cover',
+							display: 'block'
 						}
 					}}
 				>
-					{photos.map((photo, index) => {
+					{filteredPhotos.map((photo, index) => {
 						// Use Supabase storage getPublicUrl method for correct URL construction
 						let imageUrl = null;
 						try {
@@ -123,8 +156,8 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 									</Box>
 									<ImageListItemBar
 										position="below"
-										title={`Moment ${index + 1}`}
-										subtitle="Image not available"
+										title={photo.uploaded_by || 'Anonymous Guest'}
+										subtitle=""
 									/>
 								</ImageListItem>
 							);
@@ -135,6 +168,8 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 								key={photo.id || index}
 								sx={{
 									position: 'relative',
+									// Let the image determine the height naturally
+									height: 'auto',
 									'& img': {
 										width: '100%',
 										height: 'auto',
@@ -161,8 +196,8 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 								/>
 								<ImageListItemBar
 									position="below"
-									title={`Moment ${index + 1}`}
-									subtitle={photo.uploaded_by ? `Shared by ${photo.uploaded_by}` : 'Guest photo'}
+									title={photo.uploaded_by || 'Anonymous Guest'}
+									subtitle=""
 									sx={{
 										'& .MuiImageListItemBar-title': {
 											fontSize: '0.875rem',
@@ -170,8 +205,7 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 											color: 'text.primary'
 										},
 										'& .MuiImageListItemBar-subtitle': {
-											fontSize: '0.75rem',
-											color: 'text.secondary'
+											display: 'none'
 										}
 									}}
 								/>
@@ -182,7 +216,7 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 			</Box>
 
 			<Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
-				Live collage with {count || photos.length} photos from all guests
+				Live collage with {count || filteredPhotos.length} photos from all guests
 			</Typography>
 		</Box>
 	);
