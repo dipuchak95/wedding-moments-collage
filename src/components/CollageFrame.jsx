@@ -6,6 +6,7 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState(null);
 	const [filteredPhotos, setFilteredPhotos] = useState([]);
+	const [loadedImages, setLoadedImages] = useState(new Set());
 
 	useEffect(() => {
 		if (photos.length > 0) {
@@ -14,7 +15,11 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 				photo && 
 				photo.storage_path && 
 				photo.storage_path.trim() !== '' &&
-				photo.storage_path !== '.emptyFolderPlaceholder'
+				photo.storage_path !== '.emptyFolderPlaceholder' &&
+				!photo.storage_path.includes('.emptyFolderPlaceholder') &&
+				photo.storage_path.length > 5 && // Ensure it's not just a few characters
+				!photo.storage_path.startsWith('.') && // Exclude hidden files
+				photo.storage_path.includes('.') // Must have a file extension
 			);
 			
 			console.log('Original photos count:', photos.length);
@@ -22,11 +27,35 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 			console.log('Invalid photos:', photos.filter(photo => 
 				!photo || !photo.storage_path || photo.storage_path.trim() === '' || photo.storage_path === '.emptyFolderPlaceholder'
 			));
+			console.log('Sample photo data:', validPhotos[0]);
+			console.log('Sample photo user fields:', {
+				uploaded_by: validPhotos[0]?.uploaded_by,
+				user_name: validPhotos[0]?.user_name,
+				full_name: validPhotos[0]?.full_name,
+				name: validPhotos[0]?.name,
+				email: validPhotos[0]?.email,
+				user_id: validPhotos[0]?.user_id
+			});
 			
 			setFilteredPhotos(validPhotos);
 			setLoading(false);
 		}
 	}, [photos]);
+
+	// Track which images successfully loaded
+	const handleImageLoad = (photoId) => {
+		setLoadedImages(prev => new Set([...prev, photoId]));
+	};
+
+	const handleImageError = (photoId) => {
+		console.warn(`Image failed to load for photo:`, photoId);
+		// Remove failed images from the set
+		setLoadedImages(prev => {
+			const newSet = new Set(prev);
+			newSet.delete(photoId);
+			return newSet;
+		});
+	};
 
 	// Debug: Log photo data to understand structure
 	useEffect(() => {
@@ -77,9 +106,28 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 				<Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
 					Original count: {photos.length} | Filtered count: {filteredPhotos.length} | Difference: {photos.length - filteredPhotos.length}
 				</Typography>
+				<Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
+					Successfully loaded images: {loadedImages.size} | Failed images: {filteredPhotos.length - loadedImages.size}
+				</Typography>
+				{filteredPhotos.length > 0 && (
+					<Typography variant="caption" sx={{ display: 'block', mt: 1, fontFamily: 'monospace', fontSize: '0.7rem' }}>
+						First photo user data: {JSON.stringify({
+							uploaded_by: filteredPhotos[0]?.uploaded_by,
+							user_name: filteredPhotos[0]?.user_name,
+							full_name: filteredPhotos[0]?.full_name,
+							name: filteredPhotos[0]?.name,
+							email: filteredPhotos[0]?.email
+						}, null, 2)}
+					</Typography>
+				)}
 				{photos.length !== filteredPhotos.length && (
 					<Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'warning.main' }}>
 						⚠️ {photos.length - filteredPhotos.length} invalid photo(s) filtered out
+					</Typography>
+				)}
+				{loadedImages.size !== filteredPhotos.length && (
+					<Typography variant="caption" sx={{ display: 'block', mt: 1, color: 'error.main' }}>
+						❌ {filteredPhotos.length - loadedImages.size} image(s) failed to load
 					</Typography>
 				)}
 			</Box>
@@ -134,38 +182,16 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 							console.warn('Error generating Supabase URL:', err);
 						}
 
-						// If no URL found, show placeholder
+						// If no URL found, don't render anything
 						if (!imageUrl) {
-							return (
-								<ImageListItem key={photo.id || index}>
-									<Box
-										sx={{
-											width: '100%',
-											height: 200,
-											bgcolor: 'rgba(255, 182, 193, 0.2)',
-											display: 'flex',
-											alignItems: 'center',
-											justifyContent: 'center',
-											borderRadius: 2,
-											border: '2px dashed rgba(255, 182, 193, 0.4)'
-										}}
-									>
-										<Typography variant="body2" color="text.secondary">
-											No image URL
-										</Typography>
-									</Box>
-									<ImageListItemBar
-										position="below"
-										title={photo.uploaded_by || 'Anonymous Guest'}
-										subtitle=""
-									/>
-								</ImageListItem>
-							);
+							return null; // Don't render anything for invalid URLs
 						}
+
+						const photoId = photo.id || `photo-${index}`;
 
 						return (
 							<ImageListItem 
-								key={photo.id || index}
+								key={photoId}
 								sx={{
 									position: 'relative',
 									// Let the image determine the height naturally
@@ -182,9 +208,11 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 									src={imageUrl}
 									alt={`Wedding moment ${index + 1}`}
 									loading="lazy"
+									onLoad={() => handleImageLoad(photoId)}
 									onError={(e) => {
 										console.warn(`Failed to load image: ${imageUrl}`);
 										console.warn('Photo data:', photo);
+										handleImageError(photoId);
 										e.target.style.display = 'none';
 									}}
 									style={{
@@ -196,7 +224,23 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 								/>
 								<ImageListItemBar
 									position="below"
-									title={photo.uploaded_by || 'Anonymous Guest'}
+									title={(() => {
+										// Try multiple possible user name fields
+										const userName = photo.uploaded_by || 
+														photo.user_name || 
+														photo.user_name || 
+														photo.full_name || 
+														photo.name || 
+														photo.email?.split('@')[0] || 
+														'Anonymous Guest';
+										
+										// If it's a UUID (user ID), show a more user-friendly label
+										if (userName && userName.length === 36 && userName.includes('-')) {
+											return 'Guest User';
+										}
+										
+										return userName;
+									})()}
 									subtitle=""
 									sx={{
 										'& .MuiImageListItemBar-title': {
@@ -211,7 +255,7 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 								/>
 							</ImageListItem>
 						);
-					})}
+					}).filter(Boolean)} {/* Filter out null values */}
 				</ImageList>
 			</Box>
 
