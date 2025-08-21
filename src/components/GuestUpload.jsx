@@ -62,7 +62,7 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
       console.error('Upload error:', error);
       toast({
         title: "Upload failed",
-        description: "Please try again. Make sure your images are not too large.",
+        description: "Please try again. We'll automatically compress large images for you.",
         variant: "destructive",
       });
     } finally {
@@ -72,13 +72,30 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
 
   const compressImage = (file) => {
     return new Promise((resolve) => {
+      // If file is already small enough, return as is
+      if (file.size < 2 * 1024 * 1024) { // Less than 2MB
+        resolve(file);
+        return;
+      }
+
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       const img = new Image();
       
       img.onload = () => {
-        const maxSize = 1200;
-        const ratio = Math.min(maxSize / img.width, maxSize / img.height);
+        // Adaptive compression based on file size
+        let maxSize = 2000; // Increased max size
+        let quality = 0.7;
+        
+        if (file.size > 10 * 1024 * 1024) { // > 10MB
+          maxSize = 1600;
+          quality = 0.6;
+        } else if (file.size > 5 * 1024 * 1024) { // > 5MB
+          maxSize = 1800;
+          quality = 0.65;
+        }
+        
+        const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
         
         canvas.width = img.width * ratio;
         canvas.height = img.height * ratio;
@@ -91,7 +108,12 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
             lastModified: Date.now(),
           });
           resolve(compressedFile);
-        }, file.type, 0.8);
+        }, file.type, quality);
+      };
+      
+      img.onerror = () => {
+        // If image processing fails, return original file
+        resolve(file);
       };
       
       img.src = URL.createObjectURL(file);
