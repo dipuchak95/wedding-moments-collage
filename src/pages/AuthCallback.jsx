@@ -12,14 +12,37 @@ const AuthCallback = () => {
 			try {
 				console.log('AuthCallback: Starting auth flow...');
 				const code = params.get("code");
+				
 				if (code) {
 					// PKCE code flow
 					console.log('AuthCallback: Using PKCE code flow');
 					await supabase.auth.exchangeCodeForSession({ code });
 				} else {
-					// Implicit flow (hash fragment contains tokens)
-					console.log('AuthCallback: Using implicit flow (hash tokens)');
-					await supabase.auth.getSessionFromUrl({ storeSession: true });
+					// Handle hash-based tokens manually
+					console.log('AuthCallback: Using hash-based token flow');
+					const hash = window.location.hash.substring(1);
+					const params = new URLSearchParams(hash);
+					const accessToken = params.get('access_token');
+					const refreshToken = params.get('refresh_token');
+					
+					if (accessToken) {
+						console.log('AuthCallback: Found access token, setting session');
+						// Set the session manually
+						const { data, error } = await supabase.auth.setSession({
+							access_token: accessToken,
+							refresh_token: refreshToken || ''
+						});
+						
+						if (error) {
+							console.error('AuthCallback: Error setting session:', error);
+							throw error;
+						}
+						
+						console.log('AuthCallback: Session set successfully');
+					} else {
+						console.log('AuthCallback: No access token found in hash');
+						throw new Error('No access token found');
+					}
 				}
 
 				// Wait a moment for session to be established
