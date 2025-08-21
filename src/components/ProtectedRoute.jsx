@@ -11,9 +11,12 @@ const ProtectedRoute = ({ children }) => {
 	useEffect(() => {
 		let mounted = true;
 		const check = async () => {
+			console.log('ProtectedRoute: Checking session...');
 			const { data } = await supabase.auth.getSession();
+			console.log('ProtectedRoute: Session check result:', data);
 			if (!mounted) return;
 			if (data?.session) {
+				console.log('ProtectedRoute: Session found, allowing access');
 				setAllowed(true);
 				// Best-effort user upsert
 				const user = data.session.user;
@@ -28,6 +31,7 @@ const ProtectedRoute = ({ children }) => {
 					supabase.from('users').upsert(profile, { onConflict: 'id' }).then(() => {}).catch(() => {});
 				}
 			} else {
+				console.log('ProtectedRoute: No session found, redirecting to login');
 				navigate("/login", { replace: true });
 			}
 			setChecking(false);
@@ -35,8 +39,10 @@ const ProtectedRoute = ({ children }) => {
 		check();
 
 		const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+			console.log('ProtectedRoute: Auth state change:', _event, session ? 'session exists' : 'no session');
 			if (!mounted) return;
 			if (session) {
+				console.log('ProtectedRoute: Session in auth state change, allowing access');
 				setAllowed(true);
 				const user = session.user;
 				if (user) {
@@ -50,6 +56,7 @@ const ProtectedRoute = ({ children }) => {
 					supabase.from('users').upsert(profile, { onConflict: 'id' }).then(() => {}).catch(() => {});
 				}
 			} else {
+				console.log('ProtectedRoute: No session in auth state change, redirecting to login');
 				setAllowed(false);
 				navigate("/login", { replace: true });
 			}
