@@ -45,7 +45,13 @@ const Index = () => {
         return;
       }
 
-      setPhotos(data || []);
+      // Map the photos data to include user information
+      const mapped = data.map((photo) => ({
+        ...photo,
+        uploaded_by: photo.users?.full_name || photo.users?.email?.split('@')[0] || 'Anonymous Guest'
+      }));
+
+      setPhotos(mapped || []);
     } catch (error) {
       console.error('Error fetching photos:', error);
     } finally {

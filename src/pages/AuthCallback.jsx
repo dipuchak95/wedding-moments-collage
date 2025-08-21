@@ -10,23 +10,20 @@ const AuthCallback = () => {
 	useEffect(() => {
 		const run = async () => {
 			try {
-				console.log('AuthCallback: Starting auth flow...');
+			
 				const code = params.get("code");
 				
 				if (code) {
 					// PKCE code flow
-					console.log('AuthCallback: Using PKCE code flow');
 					await supabase.auth.exchangeCodeForSession({ code });
 				} else {
 					// Handle hash-based tokens manually
-					console.log('AuthCallback: Using hash-based token flow');
 					const hash = window.location.hash.substring(1);
 					const params = new URLSearchParams(hash);
 					const accessToken = params.get('access_token');
 					const refreshToken = params.get('refresh_token');
 					
 					if (accessToken) {
-						console.log('AuthCallback: Found access token, setting session');
 						// Set the session manually
 						const { data, error } = await supabase.auth.setSession({
 							access_token: accessToken,
@@ -34,13 +31,9 @@ const AuthCallback = () => {
 						});
 						
 						if (error) {
-							console.error('AuthCallback: Error setting session:', error);
 							throw error;
 						}
-						
-						console.log('AuthCallback: Session set successfully');
 					} else {
-						console.log('AuthCallback: No access token found in hash');
 						throw new Error('No access token found');
 					}
 				}
@@ -50,12 +43,10 @@ const AuthCallback = () => {
 
 				// Verify session was created
 				const { data: sessionData } = await supabase.auth.getSession();
-				console.log('AuthCallback: Session data:', sessionData);
 
 				// Upsert user in public.users
 				const { data: userData } = await supabase.auth.getUser();
 				const user = userData?.user;
-				console.log('AuthCallback: User data:', user);
 				if (user) {
 					const profile = {
 						id: user.id,
@@ -67,10 +58,8 @@ const AuthCallback = () => {
 					await supabase.from('users').upsert(profile, { onConflict: 'id' });
 				}
 
-				console.log('AuthCallback: Redirecting to dashboard...');
 				navigate("/", { replace: true });
 			} catch (err) {
-				console.error('AuthCallback: Error during auth:', err);
 				// If anything goes wrong, send user back to login
 				navigate("/login", { replace: true });
 			}

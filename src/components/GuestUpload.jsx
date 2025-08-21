@@ -197,7 +197,7 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
   };
 
   // Only show images uploaded by the current user in this section
-  const myPhotos = currentUserId ? photos.filter((p) => p.uploaded_by === currentUserId) : [];
+  const myPhotos = currentUserId ? photos.filter((p) => p.users?.id === currentUserId) : [];
 
   return (
     <Card sx={{ p: 3, borderRadius: 3, boxShadow: "var(--shadow-elegant)" }}>
@@ -282,7 +282,7 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
                   <IconButton
                     size="small"
                     onClick={() => handleDelete(photo)}
-                    disabled={currentUserId !== photo.uploaded_by}
+                    disabled={currentUserId !== photo.users?.id}
                     sx={{
                       position: "absolute",
                       top: 4,
