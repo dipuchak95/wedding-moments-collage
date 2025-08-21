@@ -52,10 +52,10 @@ const WeddingHero = () => {
             presence with a photo that will join our live collage below.
           </Typography>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ pt: 2 }}>
-            <Button variant="contained" color="primary" href="#upload" className="hover-scale">
+            <Button variant="contained" color="primary" onClick={() => document.getElementById('upload')?.scrollIntoView({ behavior: 'smooth' })} className="hover-scale">
               Share Your Photo
             </Button>
-            <Button variant="outlined" color="primary" href="#gallery" className="hover-scale">
+            <Button variant="outlined" color="primary" onClick={() => document.getElementById('gallery')?.scrollIntoView({ behavior: 'smooth' })} className="hover-scale">
               View Gallery
             </Button>
           </Stack>

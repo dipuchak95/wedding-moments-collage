@@ -72,12 +72,12 @@ const Index = () => {
       </Container>
 
       {/* Upload */}
-      <Container sx={{ mb: { xs: 6, md: 8 } }}>
+      <Container id="upload" sx={{ mb: { xs: 6, md: 8 } }}>
         <GuestUpload photos={photos} onPhotosChange={fetchPhotos} />
       </Container>
 
       {/* Collage */}
-      <Container sx={{ mb: { xs: 6, md: 10 } }}>
+      <Container id="gallery" sx={{ mb: { xs: 6, md: 10 } }}>
         <CollageFrame photos={photos} loading={loading} />
       </Container>
     </Box>
