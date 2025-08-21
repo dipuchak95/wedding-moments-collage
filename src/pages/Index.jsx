@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Box, Container, Stack, Typography } from "@mui/material";
+import { Box, Container, Stack, Typography, Paper, Button } from "@mui/material";
 import WeddingHero from "@/components/WeddingHero";
 import AutoScrollCanvas from "@/components/AutoScrollCanvas";
 import GuestUpload from "@/components/GuestUpload";
@@ -15,14 +15,24 @@ import img5 from "@/assets/wedding-05.jpg";
 const Index = () => {
   const galleryImages = useMemo(() => [img1, img2, img3, img4, img5], []);
   const [photos, setPhotos] = useState([]);
+  const [bucketPhotos, setBucketPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({ users: 0, photos: 0 });
+  
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      window.location.href = '/login';
+    }
+  };
 
   const fetchPhotos = async () => {
     try {
       const { data, error } = await supabase
         .from('photos')
         .select('*')
-        .order('uploaded_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error fetching photos:', error);
@@ -37,8 +47,62 @@ const Index = () => {
     }
   };
 
+  const fetchBucketPhotos = async () => {
+    try {
+      const pageSize = 100;
+      let offset = 0;
+      let allItems = [];
+      // List images from the 'uploads' folder within the bucket
+      // Loop for pagination to ensure we retrieve all files
+      // Stop when a page returns fewer than pageSize items
+      // Note: If your files are not inside an 'uploads' folder, change the path argument below
+      while (true) {
+        const { data, error } = await supabase.storage
+          .from('wedding-photos')
+          .list('uploads', {
+            limit: pageSize,
+            offset,
+            sortBy: { column: 'updated_at', order: 'desc' },
+          });
+        if (error) {
+          console.error('Error listing bucket photos:', error);
+          break;
+        }
+        const items = data || [];
+        allItems = allItems.concat(items);
+        if (items.length < pageSize) break;
+        offset += pageSize;
+      }
+
+      // Map storage items into a minimal shape expected by collage renderer
+      const mapped = allItems.map((item) => ({
+        // Match the path format used elsewhere in the app
+        storage_path: `uploads/${item.name}`,
+        created_at: item.created_at,
+        filename: item.name,
+      }));
+      setBucketPhotos(mapped);
+    } catch (err) {
+      console.error('Unexpected error listing bucket photos:', err);
+    }
+  };
+
+  const fetchCounts = async () => {
+    try {
+      const [{ count: usersCount }, { count: photosCount }] = await Promise.all([
+        supabase.from('users').select('*', { count: 'exact', head: true }),
+        supabase.from('photos').select('*', { count: 'exact', head: true }),
+      ]);
+      setStats({ users: usersCount || 0, photos: photosCount || 0 });
+    } catch (error) {
+      // Non-blocking: ignore count failures
+    }
+  };
+
   useEffect(() => {
     fetchPhotos();
+    fetchBucketPhotos();
+    fetchCounts();
 
     // Set up real-time subscription
     const subscription = supabase
@@ -47,14 +111,37 @@ const Index = () => {
         { event: '*', schema: 'public', table: 'photos' },
         () => {
           fetchPhotos();
+          fetchBucketPhotos();
+          fetchCounts();
         }
       )
       .subscribe();
 
+    const usersSub = supabase
+      .channel('users_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => {
+        fetchCounts();
+      })
+      .subscribe();
+
     return () => {
       subscription.unsubscribe();
+      usersSub.unsubscribe();
     };
   }, []);
+
+  const autoImages = useMemo(() => {
+    // Prefer bucket photos (complete set), fall back to bundled images if empty
+    if (bucketPhotos.length > 0) {
+      return bucketPhotos.map((p) => {
+        const { data } = supabase.storage
+          .from('wedding-photos')
+          .getPublicUrl(p.storage_path);
+        return data.publicUrl;
+      });
+    }
+    return galleryImages;
+  }, [bucketPhotos, galleryImages]);
 
   return (
     <Box component="main" sx={{ py: { xs: 4, md: 8 } }}>
@@ -68,7 +155,7 @@ const Index = () => {
         <Typography component="h2" variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
           Our Moments
         </Typography>
-        <AutoScrollCanvas images={galleryImages} />
+        <AutoScrollCanvas images={autoImages} />
       </Container>
 
       {/* Upload */}
@@ -78,7 +165,33 @@ const Index = () => {
 
       {/* Collage */}
       <Container id="gallery" sx={{ mb: { xs: 6, md: 10 } }}>
-        <CollageFrame photos={photos} loading={loading} />
+        <CollageFrame photos={bucketPhotos.length ? bucketPhotos : photos} loading={loading} />
+      </Container>
+
+      {/* Stats Section */}
+      <Container sx={{ mb: { xs: 2, md: 4 } }}>
+        <Paper sx={{ p: 3, borderRadius: 3, boxShadow: 'var(--shadow-elegant)' }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={4} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="center">
+            <Box>
+              <Typography variant="overline" color="text.secondary">Guests Joined</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 700 }}>{stats.users}</Typography>
+            </Box>
+            <Box>
+              <Typography variant="overline" color="text.secondary">Photos Posted</Typography>
+              <Typography variant="h4" sx={{ fontWeight: 700 }}>{stats.photos}</Typography>
+            </Box>
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, textAlign: 'center' }}>
+            Thank you for celebrating with us — your moments make this day unforgettable.
+          </Typography>
+        </Paper>
+      </Container>
+
+      {/* Logout Button */}
+      <Container sx={{ mb: { xs: 4, md: 8 }, textAlign: 'center' }}>
+        <Button variant="outlined" color="primary" onClick={handleLogout}>
+          Log out
+        </Button>
       </Container>
     </Box>
   );

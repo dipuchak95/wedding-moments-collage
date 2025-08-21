@@ -1,8 +1,10 @@
-import { useRef } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Box, Container, Typography, Button, Stack } from "@mui/material";
 import floral from "@/assets/floral-spray.svg";
+import { supabase } from "@/lib/supabase";
 const WeddingHero = () => {
   const ref = useRef(null);
+  const [displayName, setDisplayName] = useState("");
 
   const handleMouseMove = (e) => {
     if (!ref.current) return;
@@ -12,6 +14,32 @@ const WeddingHero = () => {
     ref.current.style.setProperty("--x", `${x}px`);
     ref.current.style.setProperty("--y", `${y}px`);
   };
+
+  useEffect(() => {
+    let mounted = true;
+    const resolveName = (user) => {
+      const name =
+        user?.user_metadata?.full_name ||
+        user?.user_metadata?.name ||
+        (user?.email ? user.email.split("@")[0] : "");
+      if (mounted) setDisplayName(name || "");
+    };
+
+    const loadUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      resolveName(data?.user);
+    };
+    loadUser();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      resolveName(session?.user);
+    });
+
+    return () => {
+      mounted = false;
+      sub.subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <Box
@@ -44,8 +72,18 @@ const WeddingHero = () => {
       />
       <Container maxWidth="md">
         <Stack spacing={3} alignItems="center">
-          <Typography component="h1" variant="h2" sx={{ fontWeight: 700 }}>
-            Welcome to Our Wedding
+          <Typography
+            component="h1"
+            variant="h2"
+            sx={{ fontWeight: 700, fontFamily: `'Playwrite Canada', 'Playwrite CA', ui-serif, Georgia, serif` }}
+          >
+            {displayName ? (
+              <>
+                Welcome <span className="hero-name-italic">{displayName}</span> to Our Wedding
+              </>
+            ) : (
+              "Welcome to Our Wedding"
+            )}
           </Typography>
           <Typography variant="h6" color="text.secondary">
             We’re so happy you’re here. Enjoy our favorite moments and mark your

@@ -1,19 +1,49 @@
-import { useRef, useState } from "react";
-import { Box, Card, Typography, Button, Grid, IconButton, CircularProgress } from "@mui/material";
-import { CloudUpload as UploadIcon, Delete as DeleteIcon } from "@mui/icons-material";
+import { useEffect, useRef, useState } from "react";
+import { Box, Card, Typography, Button, Grid, IconButton, CircularProgress, Menu, MenuItem, ListItemIcon, ListItemText } from "@mui/material";
+import { CloudUpload as UploadIcon, Delete as DeleteIcon, PhotoCamera as CameraIcon, PhotoLibrary as LibraryIcon } from "@mui/icons-material";
 import { supabase } from "@/lib/supabase";
 import { toast } from "@/hooks/use-toast";
 
 const GuestUpload = ({ photos, onPhotosChange }) => {
-  const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const cameraInputRef = useRef(null);
+  const [menuAnchor, setMenuAnchor] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState("");
 
-  const handleSelect = () => inputRef.current?.click();
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (mounted) setCurrentUserId(data?.user?.id || "");
+    };
+    load();
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      setCurrentUserId(session?.user?.id || "");
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
+
+  const handleOpenMenu = (event) => setMenuAnchor(event.currentTarget);
+  const handleCloseMenu = () => setMenuAnchor(null);
+  const handleSelectSource = (source) => {
+    handleCloseMenu();
+    if (source === 'camera') {
+      cameraInputRef.current?.click();
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
 
   const onFiles = async (files) => {
     setUploading(true);
     
     try {
+      const { data: userData } = await supabase.auth.getUser();
+      const authUser = userData?.user;
+      if (!authUser) {
+        throw new Error('Not authenticated');
+      }
       const uploadPromises = Array.from(files).map(async (file) => {
         // Always check and compress if needed
         const processedFile = await compressImage(file);
@@ -38,7 +68,7 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
           .insert({
             filename: fileName,
             storage_path: filePath,
-            uploaded_by: 'Guest',
+            uploaded_by: authUser.id,
             file_size: processedFile.size,
             mime_type: processedFile.type,
           });
@@ -166,6 +196,9 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
     }
   };
 
+  // Only show images uploaded by the current user in this section
+  const myPhotos = currentUserId ? photos.filter((p) => p.uploaded_by === currentUserId) : [];
+
   return (
     <Card sx={{ p: 3, borderRadius: 3, boxShadow: "var(--shadow-elegant)" }}>
       <Typography variant="h5" sx={{ mb: 1, fontWeight: 600 }}>
@@ -176,28 +209,59 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
       </Typography>
 
       <Box sx={{ mb: 3 }}>
+        {/* Hidden input for choosing from device (gallery/files) */}
         <input
-          ref={inputRef}
+          ref={fileInputRef}
           type="file"
           accept="image/*"
           multiple
           onChange={(e) => e.target.files && onFiles(e.target.files)}
           style={{ display: "none" }}
         />
+        {/* Hidden input for taking a photo via camera on mobile */}
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={(e) => e.target.files && onFiles(e.target.files)}
+          style={{ display: "none" }}
+        />
         <Button
           variant="contained"
           startIcon={uploading ? <CircularProgress size={20} color="inherit" /> : <UploadIcon />}
-          onClick={handleSelect}
+          onClick={handleOpenMenu}
           disabled={uploading}
           sx={{ mb: 3 }}
         >
           {uploading ? 'Uploading...' : 'Upload Photos'}
         </Button>
+
+        <Menu
+          anchorEl={menuAnchor}
+          open={Boolean(menuAnchor)}
+          onClose={handleCloseMenu}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        >
+          <MenuItem onClick={() => handleSelectSource('camera')}>
+            <ListItemIcon>
+              <CameraIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Take Photo (Camera)" />
+          </MenuItem>
+          <MenuItem onClick={() => handleSelectSource('device')}>
+            <ListItemIcon>
+              <LibraryIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Choose from device" />
+          </MenuItem>
+        </Menu>
       </Box>
 
-      {photos.length > 0 && (
+      {myPhotos.length > 0 && (
         <Grid container spacing={2}>
-          {photos.map((photo) => {
+          {myPhotos.map((photo) => {
             const { data } = supabase.storage
               .from('wedding-photos')
               .getPublicUrl(photo.storage_path);
@@ -218,6 +282,7 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
                   <IconButton
                     size="small"
                     onClick={() => handleDelete(photo)}
+                    disabled={currentUserId !== photo.uploaded_by}
                     sx={{
                       position: "absolute",
                       top: 4,

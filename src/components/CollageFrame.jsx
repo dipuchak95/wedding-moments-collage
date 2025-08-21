@@ -3,81 +3,157 @@ import { Box, Paper, Typography, Button, CircularProgress } from "@mui/material"
 import floral from "@/assets/floral-spray.svg";
 import { supabase } from "@/lib/supabase";
 
-const CollageFrame = ({ photos, loading = false, size = 640 }) => {
+const CollageFrame = ({ photos, loading = false, size }) => {
   const canvasRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    let isCancelled = false;
 
-    const dpr = window.devicePixelRatio || 1;
-    const cssSize = size;
+    const render = async () => {
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
 
-    canvas.width = cssSize * dpr;
-    canvas.height = cssSize * dpr;
-    canvas.style.width = cssSize + "px";
-    canvas.style.height = cssSize + "px";
+      const dpr = window.devicePixelRatio || 1;
+      const parent = canvas.parentElement;
+      const cssSize = Math.max(1, Math.floor(size || (parent ? parent.clientWidth : 640)));
 
-    ctx.scale(dpr, dpr);
+      canvas.width = cssSize * dpr;
+      canvas.height = cssSize * dpr;
+      canvas.style.width = cssSize + "px";
+      canvas.style.height = cssSize + "px";
 
-    const drawImageCover = (img, x, y, w, h) => {
-      const scale = Math.max(w / img.width, h / img.height);
-      const newWidth = img.width * scale;
-      const newHeight = img.height * scale;
-      const offsetX = (w - newWidth) / 2;
-      const offsetY = (h - newHeight) / 2;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      ctx.drawImage(img, x + offsetX, y + offsetY, newWidth, newHeight);
-    };
+      const drawImageCover = (img, x, y, w, h) => {
+        const scale = Math.max(w / img.width, h / img.height);
+        const newWidth = img.width * scale;
+        const newHeight = img.height * scale;
+        const offsetX = (w - newWidth) / 2;
+        const offsetY = (h - newHeight) / 2;
+        ctx.drawImage(img, Math.round(x + offsetX), Math.round(y + offsetY), Math.round(newWidth), Math.round(newHeight));
+      };
 
-    ctx.fillStyle = "hsl(var(--card))";
-    ctx.fillRect(0, 0, cssSize, cssSize);
+      const drawLoveBackground = (width) => {
+        // Soft romantic gradient background
+        const gradient = ctx.createLinearGradient(0, 0, width, width);
+        gradient.addColorStop(0, 'hsla(340, 70%, 99%, 1)');
+        gradient.addColorStop(1, 'hsla(35, 100%, 97%, 1)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, width, width);
 
-    if (loading) {
-      ctx.fillStyle = "hsl(var(--muted-foreground))";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.font = "600 18px system-ui, -apple-system, Segoe UI, Roboto";
-      ctx.fillText("Loading photos...", cssSize / 2, cssSize / 2);
-      return;
-    }
+        // Subtle hearts pattern
+        const drawHeart = (cx, cy, size) => {
+          const s = size;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy + s * 0.25);
+          ctx.bezierCurveTo(cx + s * 0.5, cy - s * 0.2, cx + s, cy + s * 0.3, cx, cy + s);
+          ctx.bezierCurveTo(cx - s, cy + s * 0.3, cx - s * 0.5, cy - s * 0.2, cx, cy + s * 0.25);
+          ctx.closePath();
+          ctx.fill();
+        };
 
-    if (photos.length === 0) {
-      // Empty state
-      ctx.fillStyle = "hsl(var(--muted-foreground))";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.font = "600 18px system-ui, -apple-system, Segoe UI, Roboto";
-      ctx.fillText("Upload photos to see your collage", cssSize / 2, cssSize / 2);
-      return;
-    }
+        ctx.save();
+        ctx.globalAlpha = 0.08;
+        ctx.fillStyle = 'hsl(340 70% 50%)';
 
-    const cols = Math.ceil(Math.sqrt(photos.length));
-    const rows = Math.ceil(photos.length / cols);
-    const cellW = cssSize / cols;
-    const cellH = cssSize / rows;
+        const step = Math.max(60, Math.floor(width * 0.1));
+        for (let y = step; y < width; y += step) {
+          for (let x = step; x < width; x += step) {
+            const jitterX = ((x + y) % 13) - 6;
+            const jitterY = ((x * y) % 11) - 5;
+            drawHeart(x + jitterX, y + jitterY, Math.max(10, Math.floor(step * 0.35)));
+          }
+        }
+        ctx.restore();
+      };
 
-    photos.forEach((photo, i) => {
-      const { data } = supabase.storage
-        .from('wedding-photos')
-        .getPublicUrl(photo.storage_path);
-      
-      const img = new Image();
-      img.onload = () => {
+      drawLoveBackground(cssSize);
+
+      if (loading) {
+        ctx.fillStyle = "hsl(var(--muted-foreground))";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "600 18px system-ui, -apple-system, Segoe UI, Roboto";
+        ctx.fillText("Loading photos...", cssSize / 2, cssSize / 2);
+        return;
+      }
+
+      if (photos.length === 0) {
+        ctx.fillStyle = "hsl(var(--muted-foreground))";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = "600 18px system-ui, -apple-system, Segoe UI, Roboto";
+        ctx.fillText("Upload photos to see your collage", cssSize / 2, cssSize / 2);
+        return;
+      }
+
+      // Preload all images first for consistent layout
+      const urls = photos.map((p) => supabase.storage.from('wedding-photos').getPublicUrl(p.storage_path).data.publicUrl);
+      const loadedImages = await Promise.all(
+        urls.map((src) => new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = src;
+        }))
+      );
+
+      if (isCancelled) return;
+
+      const validImages = loadedImages.filter(Boolean);
+      const n = validImages.length;
+      // Base tile side from requested formula: tile^2 ≈ canvasArea / n
+      const targetTile = Math.max(1, Math.floor(Math.sqrt((cssSize * cssSize) / n)));
+      // Initial columns from target tile
+      let cols = Math.max(1, Math.floor(cssSize / targetTile));
+      let rows = Math.max(1, Math.ceil(n / cols));
+      // Final square tile size ensuring everything fits
+      const tile = Math.max(1, Math.floor(Math.min(cssSize / cols, cssSize / rows)));
+      // Center the grid within the canvas
+      const totalW = cols * tile;
+      const totalH = rows * tile;
+      const offsetGridX = Math.floor((cssSize - totalW) / 2);
+      const offsetGridY = Math.floor((cssSize - totalH) / 2);
+
+      // Repaint background before final draw to ensure a clean base
+      drawLoveBackground(cssSize);
+
+      // Rounded clipping helper
+      const clipRoundedRect = (x, y, w, h, radius) => {
+        const r = Math.min(radius, Math.floor(Math.min(w, h) / 2));
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      };
+
+      validImages.forEach((img, i) => {
         const r = Math.floor(i / cols);
         const c = i % cols;
-        const x = Math.round(c * cellW);
-        const y = Math.round(r * cellH);
-        drawImageCover(img, x, y, Math.ceil(cellW), Math.ceil(cellH));
-      };
-      img.onerror = () => {
-        // Skip failed image
-      };
-      img.src = data.publicUrl;
-    });
+        const x = offsetGridX + c * tile;
+        const y = offsetGridY + r * tile;
+        const radius = Math.max(6, Math.round(tile * 0.08));
+        ctx.save();
+        clipRoundedRect(x, y, tile, tile, radius);
+        ctx.clip();
+        drawImageCover(img, x, y, tile, tile);
+        ctx.restore();
+      });
+    };
+
+    render();
+    const onResize = () => render();
+    window.addEventListener('resize', onResize);
+    return () => {
+      isCancelled = true;
+      window.removeEventListener('resize', onResize);
+    };
   }, [photos, loading, size]);
 
   const handleDownload = () => {
@@ -100,7 +176,7 @@ const CollageFrame = ({ photos, loading = false, size = 640 }) => {
           Download Collage
         </Button>
       </Box>
-      <Box sx={{ position: "relative", borderRadius: 3, overflow: "hidden", border: "1px solid hsl(var(--border))" }}>
+      <Box sx={{ position: "relative", borderRadius: 3, overflow: "hidden", border: "1px solid hsl(var(--border))", width: '100%' }}>
         <img
           src={floral}
           alt=""

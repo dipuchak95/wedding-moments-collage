@@ -109,6 +109,15 @@ All colors MUST be HSL. */
 
 /* Utilities and signature interactions */
 @layer utilities {
+  .font-script {
+    font-family: 'Playwrite Canada', 'Playwrite CA', ui-serif, Georgia, serif;
+    letter-spacing: 0.5px;
+    color: hsl(var(--accent));
+  }
+
+  .hero-name-italic {
+    font-style: italic;
+  }
   /* Underline Animation */
   .story-link {
     position: relative;
