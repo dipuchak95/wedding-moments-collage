@@ -49,7 +49,7 @@ const CollageFrame = ({ photos, count }) => {
           textShadow: '0 2px 4px rgba(0,0,0,0.1)'
         }}
       >
-        Live Wedding Collage
+        Live Wedding Moments
       </Typography>
       
       <Typography 
@@ -139,7 +139,8 @@ const CollageFrame = ({ photos, count }) => {
                     '& .MuiImageListItemBar-title': {
                       fontSize: '0.875rem',
                       fontWeight: 600,
-                      color: 'text.primary'
+                      color: 'text.primary',
+                      textAlign: 'center'
                     },
                     '& .MuiImageListItemBar-subtitle': {
                       display: 'none'
