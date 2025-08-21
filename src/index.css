@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Playwrite+Canada:wght@400&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -116,6 +118,7 @@ All colors MUST be HSL. */
   }
 
   .hero-name-italic {
+    font-family: 'Playwrite Canada', cursive;
     font-style: italic;
   }
   /* Underline Animation */
@@ -155,4 +158,16 @@ All colors MUST be HSL. */
   .interactive-gradient {
     background: radial-gradient(600px circle at var(--x, 50%) var(--y, 50%), hsl(var(--accent)/0.14), transparent 40%);
   }
+}
+
+/* Animation for loading state floral elements */
+@keyframes fadeInRotate {
+	0% {
+		opacity: 0;
+		transform: rotate(-20deg) scale(0.8);
+	}
+	100% {
+		opacity: 0.5;
+		transform: rotate(12deg) scale(1);
+	}
 }

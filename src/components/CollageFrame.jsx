@@ -1,213 +1,128 @@
-import { useEffect, useRef } from "react";
-import { Box, Paper, Typography, Button, CircularProgress } from "@mui/material";
-import floral from "@/assets/floral-spray.svg";
-import { supabase } from "@/lib/supabase";
+import { useState, useEffect } from "react";
+import { Box, Typography, ImageList, ImageListItem, ImageListItemBar, CircularProgress } from "@mui/material";
 
-const CollageFrame = ({ photos, loading = false, size }) => {
-  const canvasRef = useRef(null);
+const CollageFrame = ({ photos = [], count = 0 }) => {
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState(null);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+	useEffect(() => {
+		if (photos.length > 0) {
+			setLoading(false);
+		}
+	}, [photos]);
 
-    let isCancelled = false;
+	if (error) {
+		return (
+			<Box sx={{ textAlign: 'center', py: 4 }}>
+				<Typography color="error" variant="body2">
+					Error loading collage: {error}
+				</Typography>
+			</Box>
+		);
+	}
 
-    const render = async () => {
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+	if (loading) {
+		return (
+			<Box sx={{ py: 4, textAlign: 'center' }}>
+				<CircularProgress size={40} />
+				<Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
+					Creating your wedding collage...
+				</Typography>
+			</Box>
+		);
+	}
 
-      const dpr = window.devicePixelRatio || 1;
-      const parent = canvas.parentElement;
-      const cssSize = Math.max(1, Math.floor(size || (parent ? parent.clientWidth : 640)));
+	if (photos.length === 0) {
+		return (
+			<Box sx={{ textAlign: 'center', py: 4 }}>
+				<Typography variant="body2" color="text.secondary">
+					No photos uploaded yet. Be the first to share a moment!
+				</Typography>
+			</Box>
+		);
+	}
 
-      canvas.width = cssSize * dpr;
-      canvas.height = cssSize * dpr;
-      canvas.style.width = cssSize + "px";
-      canvas.style.height = cssSize + "px";
+	return (
+		<Box sx={{ textAlign: 'center' }}>
+			<Box sx={{ 
+				borderRadius: 3, 
+				boxShadow: 'var(--shadow-elegant)',
+				overflow: 'hidden',
+				background: 'linear-gradient(135deg, #fff5f7 0%, #ffeef2 50%, #fff0f5 100%)',
+				p: 2
+			}}>
+				<ImageList 
+					variant="masonry" 
+					cols={{ xs: 2, sm: 3, md: 4, lg: 5, xl: 6 }} 
+					gap={16}
+					sx={{ 
+						m: 0,
+						'& .MuiImageListItem-root': {
+							borderRadius: 2,
+							overflow: 'hidden',
+							boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+							transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+							'&:hover': {
+								transform: 'translateY(-4px)',
+								boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)',
+							}
+						}
+					}}
+				>
+					{photos.map((photo, index) => {
+						const imageUrl = photo.storage_path ? 
+							`https://wedding-moments-collage.supabase.co/storage/v1/object/public/wedding-photos/${photo.storage_path}` :
+							photo.url;
+						
+						return (
+							<ImageListItem 
+								key={photo.id || index}
+								sx={{
+									position: 'relative',
+									'& img': {
+										width: '100%',
+										height: 'auto',
+										display: 'block',
+										borderRadius: 2,
+									}
+								}}
+							>
+								<img
+									src={imageUrl}
+									alt={`Wedding moment ${index + 1}`}
+									loading="lazy"
+									onError={(e) => {
+										console.warn(`Failed to load image: ${imageUrl}`);
+										e.target.style.display = 'none';
+									}}
+								/>
+								<ImageListItemBar
+									position="below"
+									title={`Moment ${index + 1}`}
+									subtitle={photo.uploaded_by ? `Shared by ${photo.uploaded_by}` : 'Guest photo'}
+									sx={{
+										'& .MuiImageListItemBar-title': {
+											fontSize: '0.875rem',
+											fontWeight: 600,
+											color: 'text.primary'
+										},
+										'& .MuiImageListItemBar-subtitle': {
+											fontSize: '0.75rem',
+											color: 'text.secondary'
+										}
+									}}
+								/>
+							</ImageListItem>
+						);
+					})}
+				</ImageList>
+			</Box>
 
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      const drawImageCover = (img, x, y, w, h) => {
-        const scale = Math.max(w / img.width, h / img.height);
-        const newWidth = img.width * scale;
-        const newHeight = img.height * scale;
-        const offsetX = (w - newWidth) / 2;
-        const offsetY = (h - newHeight) / 2;
-        ctx.drawImage(img, Math.round(x + offsetX), Math.round(y + offsetY), Math.round(newWidth), Math.round(newHeight));
-      };
-
-      const drawLoveBackground = (width) => {
-        // Soft romantic gradient background
-        const gradient = ctx.createLinearGradient(0, 0, width, width);
-        gradient.addColorStop(0, 'hsla(340, 70%, 99%, 1)');
-        gradient.addColorStop(1, 'hsla(35, 100%, 97%, 1)');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, width, width);
-
-        // Subtle hearts pattern
-        const drawHeart = (cx, cy, size) => {
-          const s = size;
-          ctx.beginPath();
-          ctx.moveTo(cx, cy + s * 0.25);
-          ctx.bezierCurveTo(cx + s * 0.5, cy - s * 0.2, cx + s, cy + s * 0.3, cx, cy + s);
-          ctx.bezierCurveTo(cx - s, cy + s * 0.3, cx - s * 0.5, cy - s * 0.2, cx, cy + s * 0.25);
-          ctx.closePath();
-          ctx.fill();
-        };
-
-        ctx.save();
-        ctx.globalAlpha = 0.08;
-        ctx.fillStyle = 'hsl(340 70% 50%)';
-
-        const step = Math.max(60, Math.floor(width * 0.1));
-        for (let y = step; y < width; y += step) {
-          for (let x = step; x < width; x += step) {
-            const jitterX = ((x + y) % 13) - 6;
-            const jitterY = ((x * y) % 11) - 5;
-            drawHeart(x + jitterX, y + jitterY, Math.max(10, Math.floor(step * 0.35)));
-          }
-        }
-        ctx.restore();
-      };
-
-      drawLoveBackground(cssSize);
-
-      if (loading) {
-        ctx.fillStyle = "hsl(var(--muted-foreground))";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = "600 18px system-ui, -apple-system, Segoe UI, Roboto";
-        ctx.fillText("Loading photos...", cssSize / 2, cssSize / 2);
-        return;
-      }
-
-      if (photos.length === 0) {
-        ctx.fillStyle = "hsl(var(--muted-foreground))";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.font = "600 18px system-ui, -apple-system, Segoe UI, Roboto";
-        ctx.fillText("Upload photos to see your collage", cssSize / 2, cssSize / 2);
-        return;
-      }
-
-      // Preload all images first for consistent layout
-      const urls = photos.map((p) => supabase.storage.from('wedding-photos').getPublicUrl(p.storage_path).data.publicUrl);
-      const loadedImages = await Promise.all(
-        urls.map((src) => new Promise((resolve) => {
-          const img = new Image();
-          img.onload = () => resolve(img);
-          img.onerror = () => resolve(null);
-          img.src = src;
-        }))
-      );
-
-      if (isCancelled) return;
-
-      const validImages = loadedImages.filter(Boolean);
-      const n = validImages.length;
-
-      // Compute the optimal grid (cols/rows) that maximizes uniform tile size
-      let best = { tile: 0, cols: 1, rows: 1 };
-      for (let c = 1; c <= Math.max(1, n); c++) {
-        const r = Math.ceil(n / c);
-        const tileCandidate = Math.floor(Math.min(cssSize / c, cssSize / r));
-        if (tileCandidate > best.tile) {
-          best = { tile: tileCandidate, cols: c, rows: r };
-        }
-      }
-      const { tile, cols, rows } = best;
-      const totalW = cols * tile;
-      const totalH = rows * tile;
-      const offsetGridX = Math.floor((cssSize - totalW) / 2);
-      const offsetGridY = Math.floor((cssSize - totalH) / 2);
-
-      // Repaint background before final draw to ensure a clean base
-      drawLoveBackground(cssSize);
-
-      // Rounded clipping helper
-      const clipRoundedRect = (x, y, w, h, radius) => {
-        const r = Math.min(radius, Math.floor(Math.min(w, h) / 2));
-        ctx.beginPath();
-        ctx.moveTo(x + r, y);
-        ctx.arcTo(x + w, y, x + w, y + h, r);
-        ctx.arcTo(x + w, y + h, x, y + h, r);
-        ctx.arcTo(x, y + h, x, y, r);
-        ctx.arcTo(x, y, x + w, y, r);
-        ctx.closePath();
-      };
-
-      validImages.forEach((img, i) => {
-        const r = Math.floor(i / cols);
-        const c = i % cols;
-        const x = offsetGridX + c * tile;
-        const y = offsetGridY + r * tile;
-        const radius = Math.max(6, Math.round(tile * 0.08));
-        ctx.save();
-        clipRoundedRect(x, y, tile, tile, radius);
-        ctx.clip();
-        drawImageCover(img, x, y, tile, tile);
-        ctx.restore();
-      });
-    };
-
-    render();
-    const onResize = () => render();
-    window.addEventListener('resize', onResize);
-    return () => {
-      isCancelled = true;
-      window.removeEventListener('resize', onResize);
-    };
-  }, [photos, loading, size]);
-
-  const handleDownload = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const link = document.createElement("a");
-    link.download = "wedding-collage.png";
-    link.href = canvas.toDataURL();
-    link.click();
-  };
-
-  return (
-    <Paper sx={{ p: 3, borderRadius: 3, boxShadow: "var(--shadow-elegant)" }}>
-      <Typography variant="h5" sx={{ mb: 2, fontWeight: 600 }}>
-        Live Wedding Collage
-      </Typography>
-      <Box sx={{ mb: 2 }}>
-        <Button variant="outlined" onClick={handleDownload}>
-          Download Collage
-        </Button>
-      </Box>
-      <Box sx={{ position: "relative", borderRadius: 3, overflow: "hidden", border: "1px solid hsl(var(--border))", width: '100%' }}>
-        <img
-          src={floral}
-          alt=""
-          aria-hidden="true"
-          className="animate-fade-in"
-          style={{ position: "absolute", top: -10, left: -10, width: 140, opacity: 0.35, pointerEvents: "none", zIndex: 0, transform: "rotate(-10deg)" }}
-        />
-        <img
-          src={floral}
-          alt=""
-          aria-hidden="true"
-          className="animate-fade-in"
-          style={{ position: "absolute", bottom: -12, right: -12, width: 160, opacity: 0.35, pointerEvents: "none", zIndex: 0, transform: "rotate(160deg)" }}
-        />
-        <canvas ref={canvasRef} style={{ position: "relative", zIndex: 1 }} />
-      </Box>
-      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
-        {loading ? (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <CircularProgress size={16} />
-            Loading photos from all guests...
-          </Box>
-        ) : (
-          `Live collage with ${photos.length} photos from all guests`
-        )}
-      </Typography>
-    </Paper>
-  );
+			<Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
+				Live collage with {count || photos.length} photos from all guests
+			</Typography>
+		</Box>
+	);
 };
 
 export default CollageFrame;
