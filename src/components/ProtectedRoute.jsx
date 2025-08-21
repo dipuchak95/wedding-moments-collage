@@ -7,6 +7,7 @@ const ProtectedRoute = ({ children }) => {
 	const navigate = useNavigate();
 	const [checking, setChecking] = useState(true);
 	const [allowed, setAllowed] = useState(false);
+	const [userLoaded, setUserLoaded] = useState(false);
 
 	useEffect(() => {
 		let mounted = true;
@@ -18,9 +19,29 @@ const ProtectedRoute = ({ children }) => {
 			if (data?.session) {
 				console.log('ProtectedRoute: Session found, allowing access');
 				setAllowed(true);
-				// Best-effort user upsert
+				
+				// Wait for user metadata to be fully loaded
 				const user = data.session.user;
 				if (user) {
+					// Check if we have the user's display name
+					const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0];
+					
+					if (displayName) {
+						console.log('ProtectedRoute: User display name loaded:', displayName);
+						setUserLoaded(true);
+					} else {
+						// Wait a bit more for metadata to load
+						console.log('ProtectedRoute: Waiting for user metadata...');
+						setTimeout(() => {
+							if (mounted) {
+								const updatedUser = supabase.auth.getUser();
+								console.log('ProtectedRoute: User metadata check after delay:', updatedUser);
+								setUserLoaded(true);
+							}
+						}, 1000);
+					}
+					
+					// Best-effort user upsert
 					const profile = {
 						id: user.id,
 						email: user.email,
@@ -46,6 +67,13 @@ const ProtectedRoute = ({ children }) => {
 				setAllowed(true);
 				const user = session.user;
 				if (user) {
+					// Check if we have the user's display name
+					const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0];
+					if (displayName) {
+						console.log('ProtectedRoute: User display name loaded in auth change:', displayName);
+						setUserLoaded(true);
+					}
+					
 					const profile = {
 						id: user.id,
 						email: user.email,
@@ -58,6 +86,7 @@ const ProtectedRoute = ({ children }) => {
 			} else {
 				console.log('ProtectedRoute: No session in auth state change, redirecting to login');
 				setAllowed(false);
+				setUserLoaded(false);
 				navigate("/login", { replace: true });
 			}
 		});
@@ -68,7 +97,7 @@ const ProtectedRoute = ({ children }) => {
 		};
 	}, [navigate]);
 
-	if (checking) {
+	if (checking || !userLoaded) {
 		return (
 			<Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: "60vh" }}>
 				<CircularProgress />
