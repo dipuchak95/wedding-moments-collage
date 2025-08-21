@@ -15,8 +15,8 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
     
     try {
       const uploadPromises = Array.from(files).map(async (file) => {
-        // Compress image if needed
-        const compressedFile = await compressImage(file);
+        // Always check and compress if needed
+        const processedFile = await compressImage(file);
         
         // Generate unique filename
         const fileExt = file.name.split('.').pop();
@@ -26,7 +26,7 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
         // Upload to Supabase Storage
         const { error: uploadError } = await supabase.storage
           .from('wedding-photos')
-          .upload(filePath, compressedFile);
+          .upload(filePath, processedFile);
 
         if (uploadError) {
           throw uploadError;
@@ -39,8 +39,8 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
             filename: fileName,
             storage_path: filePath,
             uploaded_by: 'Guest',
-            file_size: compressedFile.size,
-            mime_type: compressedFile.type,
+            file_size: processedFile.size,
+            mime_type: processedFile.type,
           });
 
         if (dbError) {
@@ -52,9 +52,13 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
 
       await Promise.all(uploadPromises);
       
+      const hasLargeFiles = Array.from(files).some(file => file.size > 3 * 1024 * 1024);
+      
       toast({
         title: "Photos uploaded successfully!",
-        description: `${files.length} photo(s) added to the wedding gallery.`,
+        description: hasLargeFiles 
+          ? `${files.length} photo(s) added to the gallery. Large images were automatically optimized.`
+          : `${files.length} photo(s) added to the wedding gallery.`,
       });
       
       onPhotosChange();
@@ -62,7 +66,7 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
       console.error('Upload error:', error);
       toast({
         title: "Upload failed",
-        description: "Please try again. We'll automatically compress large images for you.",
+        description: "Something went wrong. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -72,8 +76,10 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
 
   const compressImage = (file) => {
     return new Promise((resolve) => {
-      // If file is already small enough, return as is
-      if (file.size < 2 * 1024 * 1024) { // Less than 2MB
+      // Check file size - compress if over 3MB
+      const fileSizeMB = file.size / (1024 * 1024);
+      
+      if (fileSizeMB < 3) {
         resolve(file);
         return;
       }
@@ -83,15 +89,18 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
       const img = new Image();
       
       img.onload = () => {
-        // Adaptive compression based on file size
-        let maxSize = 2000; // Increased max size
+        // Aggressive compression for large files
+        let maxSize = 1500;
         let quality = 0.7;
         
-        if (file.size > 10 * 1024 * 1024) { // > 10MB
-          maxSize = 1600;
+        if (fileSizeMB > 20) { // > 20MB
+          maxSize = 1200;
+          quality = 0.5;
+        } else if (fileSizeMB > 10) { // > 10MB
+          maxSize = 1300;
           quality = 0.6;
-        } else if (file.size > 5 * 1024 * 1024) { // > 5MB
-          maxSize = 1800;
+        } else if (fileSizeMB > 5) { // > 5MB
+          maxSize = 1400;
           quality = 0.65;
         }
         
