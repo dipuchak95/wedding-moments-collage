@@ -200,13 +200,112 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
   const myPhotos = currentUserId ? photos.filter((p) => p.users?.id === currentUserId) : [];
 
   return (
-    <Card sx={{ p: 3, borderRadius: 3, boxShadow: "var(--shadow-elegant)" }}>
-      <Typography variant="h5" sx={{ mb: 1, fontWeight: 600 }}>
-        Share Your Moment
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Upload photos to be part of the live wedding collage that all guests can see
-      </Typography>
+    <Card sx={{ 
+      p: 3, 
+      borderRadius: 3, 
+      boxShadow: "var(--shadow-elegant)",
+      position: 'relative',
+      overflow: 'hidden',
+      background: 'linear-gradient(135deg, #fff 0%, #fff5f7 100%)',
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        top: -20,
+        right: -20,
+        width: 120,
+        height: 120,
+        background: 'radial-gradient(circle, rgba(255, 182, 193, 0.3) 0%, rgba(255, 182, 193, 0.1) 70%, transparent 100%)',
+        borderRadius: '50%',
+        zIndex: 0,
+      }
+    }}>
+      {/* Decorative love graphics */}
+      <Box sx={{ 
+        position: 'absolute', 
+        top: 20, 
+        right: 20, 
+        zIndex: 1,
+        display: { xs: 'none', md: 'block' }
+      }}>
+        {/* Large heart */}
+        <Box sx={{
+          width: 60,
+          height: 60,
+          position: 'relative',
+          '&::before, &::after': {
+            content: '""',
+            position: 'absolute',
+            width: 30,
+            height: 50,
+            borderRadius: '30px 30px 0 0',
+            background: 'linear-gradient(45deg, #ff6b9d, #ff8fab)',
+            transform: 'rotate(-45deg)',
+            transformOrigin: '0 100%',
+            boxShadow: '0 4px 8px rgba(255, 107, 157, 0.3)',
+          },
+          '&::after': {
+            left: 30,
+            transform: 'rotate(45deg)',
+            transformOrigin: '100% 100%',
+          }
+        }} />
+        
+        {/* Small floating hearts */}
+        <Box sx={{
+          position: 'absolute',
+          top: -15,
+          right: 10,
+          width: 20,
+          height: 20,
+          '&::before, &::after': {
+            content: '""',
+            position: 'absolute',
+            width: 10,
+            height: 16,
+            borderRadius: '10px 10px 0 0',
+            background: 'linear-gradient(45deg, #ffb6c1, #ffc0cb)',
+            transform: 'rotate(-45deg)',
+            transformOrigin: '0 100%',
+          },
+          '&::after': {
+            left: 10,
+            transform: 'rotate(45deg)',
+            transformOrigin: '100% 100%',
+          }
+        }} />
+        
+        <Box sx={{
+          position: 'absolute',
+          bottom: -10,
+          left: -5,
+          width: 16,
+          height: 16,
+          '&::before, &::after': {
+            content: '""',
+            position: 'absolute',
+            width: 8,
+            height: 13,
+            borderRadius: '8px 8px 0 0',
+            background: 'linear-gradient(45deg, #ffd1dc, #ffe4e1)',
+            transform: 'rotate(-45deg)',
+            transformOrigin: '0 100%',
+          },
+          '&::after': {
+            left: 8,
+            transform: 'rotate(45deg)',
+            transformOrigin: '100% 100%',
+          }
+        }} />
+      </Box>
+
+      {/* Content with proper z-index */}
+      <Box sx={{ position: 'relative', zIndex: 2 }}>
+        <Typography variant="h5" sx={{ mb: 1, fontWeight: 600, color: '#8B4513' }}>
+          Share Your Moment
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          Upload photos to be part of the live wedding collage that all guests can see
+        </Typography>
 
       <Box sx={{ mb: 3 }}>
         {/* Hidden input for choosing from device (gallery/files) */}
@@ -299,7 +398,60 @@ const GuestUpload = ({ photos, onPhotosChange }) => {
           })}
         </Grid>
       )}
-    </Card>
+      
+      {/* Additional decorative elements at the bottom */}
+      <Box sx={{ 
+        position: 'absolute', 
+        bottom: 10, 
+        left: 10, 
+        zIndex: 1,
+        display: { xs: 'none', sm: 'block' }
+      }}>
+        {/* Small decorative dots */}
+        <Box sx={{
+          display: 'flex',
+          gap: 1,
+          '& > div': {
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: 'linear-gradient(45deg, #ffb6c1, #ffc0cb)',
+            opacity: 0.6,
+          }
+        }}>
+          <div></div>
+          <div></div>
+          <div></div>
+        </Box>
+      </Box>
+      
+      {/* Floating sparkles */}
+      <Box sx={{
+        position: 'absolute',
+        top: '50%',
+        left: 15,
+        zIndex: 1,
+        display: { xs: 'none', lg: 'block' },
+        '&::before, &::after': {
+          content: '""',
+          position: 'absolute',
+          width: 4,
+          height: 4,
+          background: '#ffd700',
+          borderRadius: '50%',
+          animation: 'sparkle 2s ease-in-out infinite',
+        },
+        '&::before': {
+          top: -20,
+          animationDelay: '0s',
+        },
+        '&::after': {
+          bottom: -20,
+          animationDelay: '1s',
+        }
+      }} />
+        </Box>
+      </Card>
   );
 };
 
