@@ -105,14 +105,17 @@ const CollageFrame = ({ photos, loading = false, size }) => {
 
       const validImages = loadedImages.filter(Boolean);
       const n = validImages.length;
-      // Base tile side from requested formula: tile^2 ≈ canvasArea / n
-      const targetTile = Math.max(1, Math.floor(Math.sqrt((cssSize * cssSize) / n)));
-      // Initial columns from target tile
-      let cols = Math.max(1, Math.floor(cssSize / targetTile));
-      let rows = Math.max(1, Math.ceil(n / cols));
-      // Final square tile size ensuring everything fits
-      const tile = Math.max(1, Math.floor(Math.min(cssSize / cols, cssSize / rows)));
-      // Center the grid within the canvas
+
+      // Compute the optimal grid (cols/rows) that maximizes uniform tile size
+      let best = { tile: 0, cols: 1, rows: 1 };
+      for (let c = 1; c <= Math.max(1, n); c++) {
+        const r = Math.ceil(n / c);
+        const tileCandidate = Math.floor(Math.min(cssSize / c, cssSize / r));
+        if (tileCandidate > best.tile) {
+          best = { tile: tileCandidate, cols: c, rows: r };
+        }
+      }
+      const { tile, cols, rows } = best;
       const totalW = cols * tile;
       const totalH = rows * tile;
       const offsetGridX = Math.floor((cssSize - totalW) / 2);

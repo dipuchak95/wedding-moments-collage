@@ -12,7 +12,11 @@ const AuthCallback = () => {
 			try {
 				const code = params.get("code");
 				if (code) {
+					// PKCE code flow
 					await supabase.auth.exchangeCodeForSession({ code });
+				} else {
+					// Implicit flow (hash fragment contains tokens)
+					await supabase.auth.getSessionFromUrl({ storeSession: true });
 				}
 				// Upsert user in public.users
 				const { data: userData } = await supabase.auth.getUser();
