@@ -11,6 +11,14 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 		}
 	}, [photos]);
 
+	// Debug: Log photo data to understand structure
+	useEffect(() => {
+		if (photos.length > 0) {
+			console.log('CollageFrame photos:', photos);
+			console.log('First photo structure:', photos[0]);
+		}
+	}, [photos]);
+
 	if (error) {
 		return (
 			<Box sx={{ textAlign: 'center', py: 4 }}>
@@ -44,6 +52,13 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 
 	return (
 		<Box sx={{ textAlign: 'center' }}>
+			{/* Debug info */}
+			<Box sx={{ mb: 2, p: 2, bgcolor: 'rgba(0,0,0,0.05)', borderRadius: 1, fontSize: '0.75rem' }}>
+				<Typography variant="caption">
+					Debug: {photos.length} photos received. First photo keys: {Object.keys(photos[0] || {}).join(', ')}
+				</Typography>
+			</Box>
+
 			<Box sx={{ 
 				borderRadius: 3, 
 				boxShadow: 'var(--shadow-elegant)',
@@ -70,10 +85,47 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 					}}
 				>
 					{photos.map((photo, index) => {
-						const imageUrl = photo.storage_path ? 
-							`https://wedding-moments-collage.supabase.co/storage/v1/object/public/wedding-photos/${photo.storage_path}` :
-							photo.url;
-						
+						// Try multiple possible image URL properties
+						let imageUrl = null;
+						if (photo.storage_path) {
+							imageUrl = `https://wedding-moments-collage.supabase.co/storage/v1/object/public/wedding-photos/${photo.storage_path}`;
+						} else if (photo.url) {
+							imageUrl = photo.url;
+						} else if (photo.image_url) {
+							imageUrl = photo.image_url;
+						} else if (photo.public_url) {
+							imageUrl = photo.public_url;
+						}
+
+						// If no URL found, show placeholder
+						if (!imageUrl) {
+							return (
+								<ImageListItem key={photo.id || index}>
+									<Box
+										sx={{
+											width: '100%',
+											height: 200,
+											bgcolor: 'rgba(255, 182, 193, 0.2)',
+											display: 'flex',
+											alignItems: 'center',
+											justifyContent: 'center',
+											borderRadius: 2,
+											border: '2px dashed rgba(255, 182, 193, 0.4)'
+										}}
+									>
+										<Typography variant="body2" color="text.secondary">
+											No image URL
+										</Typography>
+									</Box>
+									<ImageListItemBar
+										position="below"
+										title={`Moment ${index + 1}`}
+										subtitle="Image not available"
+									/>
+								</ImageListItem>
+							);
+						}
+
 						return (
 							<ImageListItem 
 								key={photo.id || index}
@@ -94,6 +146,12 @@ const CollageFrame = ({ photos = [], count = 0 }) => {
 									onError={(e) => {
 										console.warn(`Failed to load image: ${imageUrl}`);
 										e.target.style.display = 'none';
+									}}
+									style={{
+										width: '100%',
+										height: 'auto',
+										display: 'block',
+										borderRadius: 8,
 									}}
 								/>
 								<ImageListItemBar
